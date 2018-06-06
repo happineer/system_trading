@@ -20,6 +20,7 @@ from kiwoom.kw import Kiwoom
 # load main UI
 ui = uic.loadUiType("./ui/main.ui")[0]
 
+
 # main class
 class TopTrader(QMainWindow, ui):
     def __init__(self):
@@ -27,8 +28,8 @@ class TopTrader(QMainWindow, ui):
         self.kw = Kiwoom()
         self.kw.login()
         ret = self.kw.get_connect_state()
-        pdb.set_trace()
         print("end")
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
