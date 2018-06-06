@@ -16,19 +16,22 @@ from PyQt5.QtCore import pyqtSlot
 from slacker import Slacker
 
 from kiwoom.kw import Kiwoom
+from config import config_manager
 
-# load main UI
-ui = uic.loadUiType("./ui/main.ui")[0]
+# load main UI object
+ui = uic.loadUiType(config_manager.MAIN_UI_PATH)[0]
 
 
 # main class
 class TopTrader(QMainWindow, ui):
     def __init__(self):
         super().__init__()
+        self.boot_system()
+        self.setupUi(self)  # load app screen
+
+    def boot_system(self):
         self.kw = Kiwoom()
-        self.kw.login()
-        ret = self.kw.get_connect_state()
-        print("end")
+        self.slack = Slacker(config_manager.SLACK_TOKEN)
 
 
 if __name__ == "__main__":
