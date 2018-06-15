@@ -1,0 +1,3 @@
+
+class NotDefinePostFunction(KeyError):
+    pass

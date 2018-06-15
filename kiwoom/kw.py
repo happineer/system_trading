@@ -10,11 +10,18 @@ import logging
 import logging.config
 from pprint import pprint
 from kiwoom import custom_error
+from kiwoom.tr import TrManager
+from collections import deque
 
 
 class Kiwoom(QAxWidget):
     def __init__(self):
         super().__init__()
+        self.tr_mgr = TrManager(self)
+        self.evt_loop = QEventLoop()  # lock/release loop
+        self.ret_data = None
+        self.req_queue = deque(maxlen=10)
+
         self._create_kiwoom_instance()
         self._set_signal_slots()
 
@@ -23,7 +30,7 @@ class Kiwoom(QAxWidget):
 
     def _set_signal_slots(self):
         self.OnEventConnect.connect(self._on_event_connect)  # 로긴 이벤트
-        self.OnReceiveTrData.connect(self._on_receive_tr_data)  # tr 수신 이벤트
+        self.OnReceiveTrData.connect(self.tr_mgr._on_receive_tr_data)  # tr 수신 이벤트
         self.OnReceiveRealData.connect(self._on_receive_real_data)  # 실시간 시세 이벤트
         self.OnReceiveRealCondition.connect(self._on_receive_real_condition)  # 조건검색 실시간 편입, 이탈종목 이벤트
         self.OnReceiveTrCondition.connect(self._on_receive_tr_condition)  # 조건검색 조회응답 이벤트
@@ -38,21 +45,8 @@ class Kiwoom(QAxWidget):
         :param err_code: int - 0:로그인 성공, 음수:로그인 실패
         :return:
         """
-        self.login_loop.exit()
-
-    def _on_receive_tr_data(self, screen_no, rqname, trcode, record_name, next, _1, _2, _3, _4):
-        """
-        Kiwoom Receive TR Callback, 서버통신 후 데이터를 받은 시점을 알려준다.
-        조회요청 응답을 받거나 조회데이터를 수신했을 때 호출됩니다.
-        requestName과 trCode는 commRqData()메소드의 매개변수와 매핑되는 값 입니다.
-        조회데이터는 이 이벤트 메서드 내부에서 getCommData() 메서드를 이용해서 얻을 수 있습니다.
-        :param screen_no: string - 화면번호(4자리)
-        :param rqname: string - TR 요청명(commRqData() 메소드 호출시 사용된 requestName)
-        :param trcode: string - TRansaction name
-        :param record_name: string - Record name
-        :param next: string - 연속조회유무 ('0': 남은 데이터 없음, '2': 남은 데이터 있음)
-        """
-        pass
+        self.ret_data = err_code
+        self.evt_loop.exit()  # release event loop
 
     def _on_receive_real_data(self, code, real_type, real_data):
         """
@@ -123,13 +117,22 @@ class Kiwoom(QAxWidget):
         pass
 
     def _comm_connect(self):
+        """
+        키움 서버에 로그인을 시도합니다. (dynamicCall)
+        dynamicCall 수행후 이벤트 lock
+        :return: int - 0:로그인 성공, 음수:로그인 실패
+        """
         self.dynamicCall("CommConnect()")
-        self.login_loop = QEventLoop()
-        self.login_loop.exec_()
+        self.evt_loop.exec_()  # lock event
+        return self.ret_data
 
     # public kiwoom api
     def login(self):
-        self._comm_connect()
+        """
+        키움 서버에 로그인을 시도합니다.
+        :return: int - 0:로그인 성공, 음수:로그인 실패
+        """
+        return self._comm_connect()
 
     def get_connect_state(self):
         """
@@ -196,6 +199,7 @@ class Kiwoom(QAxWidget):
         조건검색 목록을 모두 수신하면 OnReceiveConditionVer()이벤트 함수가 호출됩니다.
         :return: 1:성공, others:실패
         """
+        pdb.set_trace()
         ret = self.dynamicCall("GetConditionLoad()")
         if ret != 1:
             return False
@@ -244,6 +248,52 @@ class Kiwoom(QAxWidget):
                                screen_no, condi_name, condi_index)
         return ret
 
+    def stock_min_data(self, code, tick='1', limit=0):
+        """
+        특정 주식종목의 분봉 데이터를 요청하는 함수.
+        :param code: string - 주식코드
+        :param tick: string - 분단위(1, 3, 5, 10, 15, 30, 45, 60)
+        :param limit: int - 반복 request 제한 횟수
+        :return:
+        """
+        self.ret_data = self.tr_mgr.opt10080('주식분봉', code, tick, '1111', limit)
+        return self.ret_data
+
+    def stock_day_data(self, code, date, limit=0):
+        """
+        특정 주식종목의 일봉 데이터를 요청하는 함수.
+        :param code: string - 주식코드
+        :param date: string - YYYYMMDD (20160101 연도4자리, 월 2자리, 일 2자리 형식)
+        :param limit: int - 반복 request 제한 횟수
+        :return:
+        """
+        self.ret_data = self.tr_mgr.opt10081('주식일봉', code, date, '1111', limit)
+        return self.ret_data
+
+    def stock_week_data(self, code, s_date, e_date, limit=0):
+        """
+        특정 주식종목의 주봉 데이터를 요청하는 함수.
+        :param code: string - 주식코드
+        :param s_date: string - YYYYMMDD (20160101 연도4자리, 월 2자리, 일 2자리 형식)
+        :param e_date: string - YYYYMMDD (20160101 연도4자리, 월 2자리, 일 2자리 형식)
+        :param limit: int - 반복 request 제한 횟수
+        :return:
+        """
+        self.ret_data = self.tr_mgr.opt10082('주식주봉', code, s_date, e_date, '1111', limit)
+        return self.ret_data
+
+    def stock_month_data(self, code, s_date, e_date, limit=0):
+        """
+        특정 주식종목의 월봉 데이터를 요청하는 함수.
+        :param code: string - 주식코드
+        :param s_date: string - YYYYMMDD (20160101 연도4자리, 월 2자리, 일 2자리 형식)
+        :param e_date: string - YYYYMMDD (20160101 연도4자리, 월 2자리, 일 2자리 형식)
+        :param limit: int - 반복 request 제한 횟수
+        :return:
+        """
+        self.ret_data = self.tr_mgr.opt10083('주식월봉', code, s_date, e_date, '1111', limit)
+        return self.ret_data
+
     def _get_comm_data_ex(self, trcode, output_name):
         """
         GetCommData 로 하나씩 받아오지 않고, 여러개의 값을 한번에 배열로 읽어옴.
@@ -253,8 +303,7 @@ class Kiwoom(QAxWidget):
         :param output_name:
         :return:
         """
-        ret = self.dynamicCall("GetCommDataEx(QString, QString)",
-                               trcode, output_name)
+        ret = self.dynamicCall("GetCommDataEx(QString, QString)", trcode, output_name)
         return ret
 
     def _set_input_value(self, id, value):
@@ -275,12 +324,9 @@ class Kiwoom(QAxWidget):
         :param screen_no: string - 화면번호
         :return:
         """
-        time.sleep(0.5)
         self.dynamicCall("CommRqData(QString, QString, int, QString)", rqname, trcode, int(next), screen_no)
         # when receive data, invoke self._on_receive_tr_data
-        self.tr_loop = QEventLoop()
-        self.tr_loop.exec_()
-        return self.tr_data
+        self.evt_loop.exec_()  # lock event loop
 
     def _get_repeat_cnt(self, trcode, rqname):
         """
