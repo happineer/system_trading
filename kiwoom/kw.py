@@ -18,7 +18,7 @@ class Kiwoom(QAxWidget):
     def __init__(self):
         super().__init__()
         self.tr_mgr = TrManager(self)
-        self.evt_loop = QEventLoop()  # lock/release loop
+        self.evt_loop = QEventLoop()  # lock/release event loop
         self.ret_data = None
         self.req_queue = deque(maxlen=10)
 
@@ -55,9 +55,38 @@ class Kiwoom(QAxWidget):
         getCommRealData() 메서드를 이용해서 실시간 데이터를 얻을 수 있습니다.
         :param code: string - 종목코드
         :param real_type: string - 실시간 타입(KOA의 실시간 목록 참조)
-        :param realData: string - 실시간 데이터 전문
+        :param real_data: string - 실시간 데이터 전문
         """
-        pass
+        print("code:", code, type(code))
+        print("real_type:", real_type, type(real_type))
+        print("real_data:", real_data, type(real_data))
+        fid_data = {
+            '주식시세': {
+                10: '현재가',
+                11: '전일대비',
+                12: '등락율',
+                27: '최우선매도호가',
+                28: '최우선매수호가',
+                13: '누적거래량',
+                14: '누적거래대금',
+                16: '시가',
+                17: '고가',
+                18: '저가',
+                25: '전일대비기호',
+                26: '전일거래량대비',
+                29: '거래대금증감',
+                30: '거일거래량대비',
+                31: '거래회전율',
+                32: '거래비용',
+                311: '시가총액(억)'
+            }
+        }
+        result = []
+        for fid in fid_data[real_type]:
+            value = self.get_comm_real_data(code, fid)
+            result.append(value)
+            print("Value: " + value)
+        return result
 
     def _on_receive_real_condition(self, code, update_type, condi_name, condi_index):
         """
@@ -248,6 +277,15 @@ class Kiwoom(QAxWidget):
                                screen_no, condi_name, condi_index)
         return ret
 
+    def get_per_info(self, per_condi):
+        """
+        고저PER 종목 100개를 return하는 함수
+        :param per_condi: 1:코스피저PER, 2:코스피고PER, 3:코스닥저PER, 4:코스닥고PER
+        :return:
+        """
+        self.ret_data = self.tr_mgr.opt10026('고저PER', per_condi, "1111")
+        return self.ret_data
+
     def stock_min_data(self, code, tick='1', limit=0):
         """
         특정 주식종목의 분봉 데이터를 요청하는 함수.
@@ -294,6 +332,67 @@ class Kiwoom(QAxWidget):
         self.ret_data = self.tr_mgr.opt10083('주식월봉', code, s_date, e_date, '1111', limit)
         return self.ret_data
 
+    def get_comm_real_data(self, code, fid):
+        """
+        실시간 데이터 획득 메서드
+        이 메서드는 반드시 receiveRealData() 이벤트 메서드가 호출될 때, 그 안에서 사용해야 합니다.
+        :param code: string - 종목코드
+        :param fid: - 실시간 타입에 포함된 fid
+        :return: string - fid에 해당하는 데이터
+        """
+        ret = self.dynamicCall("GetCommRealData(QString, int)", code, fid)
+        return ret
+
+    def real_stock_data(self, screen_no, codes, fids, reg_type):
+        """
+        실시간 데이터 요청 메서드
+        종목코드와 fid 리스트를 이용해서 실시간 데이터를 요청하는 메서드입니다.
+        한번에 등록 가능한 종목과 fid 갯수는 100종목, 100개의 fid 입니다.
+        실시간등록타입을 0으로 설정하면, 첫 실시간 데이터 요청을 의미하며
+        실시간등록타입을 1로 설정하면, 추가등록을 의미합니다.
+        실시간 데이터는 실시간 타입 단위로 receiveRealData() 이벤트로 전달되기 때문에,
+        이 메서드에서 지정하지 않은 fid 일지라도, 실시간 타입에 포함되어 있다면, 데이터 수신이 가능하다.
+        :param screen_no: string - 화면번호
+        :param codes: string - 종목코드 리스트(종목코드;종목코드;...)
+        :param fids: string - fid 리스트(fid;fid;...)
+        :param reg_type: string - 실시간등록타입(0: 첫 등록, 1: 추가 등록)
+                                  처음등록할때에는 꼭 real_type이 0이어야 하고, 이후부터 1로 설정가능.
+        """
+        print("dynamic Call - SetRealReg")
+        self.dynamicCall("SetRealReg(QString, QString, QString, QString)", screen_no, codes, fids, reg_type)
+
+    def set_real_remove(self, screen_no, code):
+        """
+        실시간 데이터 중지 메서드
+        setRealReg() 메서드로 등록한 종목만, 이 메서드를 통해 실시간 데이터 받기를 중지 시킬 수 있습니다.
+        :param screen_no: string - 화면번호 또는 ALL 키워드 사용가능
+        :param code: string - 종목코드 또는 ALL 키워드 사용가능
+        """
+        self.dynamicCall("SetRealRemove(QString, QString)", screen_no, code)
+
+    def send_order(self, rqname, screen_no, acc_no, order_type, code, quantity, price, hoga_gubun, orig_order_no):
+        """
+        매도/매수 주문 함수
+        주문유형(order_type) (1:신규매수, 2:신규매도, 3:매수취소, 4:매도취소, 5:매수정정, 6:매도정정)
+        hoga_gubun – 00:지정가,    03:시장가,    05:조건부지정가,   06:최유리지정가, 07:최우선지정가,
+                     10:지정가IOC, 13:시장가IOC, 16:최유리IOC,      20:지정가FOK,
+                     23:시장가FOK, 26:최유리FOK, 61:장전시간외종가,  62:시간외단일가, 81:장후시간외종가
+        ※ 시장가, 최유리지정가, 최우선지정가, 시장가IOC, 최유리IOC, 시장가FOK, 최유리FOK, 장전시간외, 장후시간외 주문시 주문가격을 입력하지 않습니다.
+        :param rqname: str -
+        :param screen_no: str -
+        :param acc_no: str -
+        :param order_type: int -
+        :param code: str -
+        :param quantity: int -
+        :param price: int -
+        :param hoga_gubun: str -
+        :param orig_order_no: str -
+        :return:
+        """
+        ret = self.dynamicCall("SendOrder(QString, QString, QString, int, QString, int, int, QString, QString)",
+                               [rqname, screen_no, acc_no, order_type, code, quantity, price, hoga_gubun, orig_order_no])
+        return ret
+
     def _get_comm_data_ex(self, trcode, output_name):
         """
         GetCommData 로 하나씩 받아오지 않고, 여러개의 값을 한번에 배열로 읽어옴.
@@ -305,6 +404,15 @@ class Kiwoom(QAxWidget):
         """
         ret = self.dynamicCall("GetCommDataEx(QString, QString)", trcode, output_name)
         return ret
+
+    def _set_input_values(self, args):
+        """
+        다수의 Tran 입력 값을 서버통신 전에 입력한다
+        :param args: list [(id, value), ...] -> _set_input_value의 인자
+        :return: None
+        """
+        for i, v in args:
+            self._set_input_value(i, v)
 
     def _set_input_value(self, id, value):
         """

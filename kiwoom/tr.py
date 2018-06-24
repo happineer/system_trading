@@ -1,8 +1,9 @@
-
+from functools import wraps
 from util import strutil
 from kiwoom.tr_post import PostFn
 from kiwoom import constant
 import pdb
+
 
 
 class TrManager():
@@ -12,6 +13,21 @@ class TrManager():
         self.tr_continue = None
         self.tr_post = PostFn(self)
 
+    def init_tr_ret_data(f):
+        @wraps(f)
+        def wrapper(*args, **kwargs):
+            args[0].tr_ret_data = []
+            ret = f(*args, **kwargs)
+            return ret
+        return wrapper
+
+    @init_tr_ret_data
+    def opt10026(self, rqname, per, screen_no):
+        self.kw._set_input_value("PER구분", per)
+        self.kw._comm_rq_data(rqname, "opt10026", "0", screen_no)  # lock event loop
+        return self.tr_ret_data  # data set when post_tr_function
+
+    @init_tr_ret_data
     def opt10080(self, rqname, code, tick, screen_no, limit=0):
         """
         특정 주식종목의 분봉 데이터를 요청하는 함수.
@@ -22,19 +38,16 @@ class TrManager():
         :param limit: str - 반복 request 제한 횟수
         :return:
         """
-        self.tr_ret_data = []
-
-        def tr_process(rqname, code, next):
-            self.kw._set_input_value("종목코드", code)
-            self.kw._set_input_value("틱범위", tick)
-            self.kw._set_input_value("수정주가구분", "0")
+        def tr_process(rqname, code, tick, screen_no, next):
+            self.kw._set_input_values([("종목코드", code), ("틱범위", tick), ("수정주가구분", "0")])
             self.kw._comm_rq_data(rqname, "opt10080", next, screen_no)  # lock event loop
 
-        tr_process(rqname, code, 0)
+        tr_process(rqname, code, tick, screen_no, 0)
         for _ in range(limit):
-            tr_process(rqname, code, 2)
+            tr_process(rqname, code, tick, screen_no, 2)
         return self.tr_ret_data  # data set when post_tr_function
 
+    @init_tr_ret_data
     def opt10081(self, rqname, code, date, screen_no, limit=0):
         """
         특정 주식종목의 일봉 데이터를 요청하는 함수.
@@ -45,19 +58,16 @@ class TrManager():
         :param limit: str - 반복 request 제한 횟수
         :return:
         """
-        self.tr_ret_data = []
-
-        def tr_process(rqname, code, next):
-            self.kw._set_input_value("종목코드", code)
-            self.kw._set_input_value("기준일자", date)
-            self.kw._set_input_value("수정주가구분", "0")
+        def tr_process(rqname, code, date, screen_no, next):
+            self.kw._set_input_values([("종목코드", code), ("기준일자", date), ("수정주가구분", "0")])
             self.kw._comm_rq_data(rqname, "opt10081", next, screen_no)  # lock event loop
 
-        tr_process(rqname, code, 0)
+        tr_process(rqname, code, date, screen_no, 0)
         for _ in range(limit):
-            tr_process(rqname, code, 2)
+            tr_process(rqname, code, date, screen_no, 2)
         return self.tr_ret_data  # data set when post_tr_function
 
+    @init_tr_ret_data
     def opt10082(self, rqname, code, s_date, e_date, screen_no, limit=0):
         """
         특정 주식종목의 주봉 데이터를 요청하는 함수.
@@ -69,20 +79,16 @@ class TrManager():
         :param limit: str - 반복 request 제한 횟수
         :return:
         """
-        self.tr_ret_data = []
-
-        def tr_process(rqname, code, next):
-            self.kw._set_input_value("종목코드", code)
-            self.kw._set_input_value("기준일자", s_date)
-            self.kw._set_input_value("끝일자", e_date)
-            self.kw._set_input_value("수정주가구분", "0")
+        def tr_process(rqname, code, s_date, e_date, screen_no, next):
+            self.kw._set_input_values([("종목코드", code), ("기준일자", s_date), ("끝일자", e_date), ("수정주가구분", "0")])
             self.kw._comm_rq_data(rqname, "opt10082", next, screen_no)  # lock event loop
 
-        tr_process(rqname, code, 0)
+        tr_process(rqname, code, s_date, e_date, screen_no, 0)
         for _ in range(limit):
-            tr_process(rqname, code, 2)
+            tr_process(rqname, code, s_date, e_date, screen_no, 2)
         return self.tr_ret_data  # data set when post_tr_function
 
+    @init_tr_ret_data
     def opt10083(self, rqname, code, s_date, e_date, screen_no, limit=0):
         """
         특정 주식종목의 월봉 데이터를 요청하는 함수.
@@ -94,18 +100,13 @@ class TrManager():
         :param limit: str - 반복 request 제한 횟수
         :return:
         """
-        self.tr_ret_data = []
-
-        def tr_process(rqname, code, next):
-            self.kw._set_input_value("종목코드", code)
-            self.kw._set_input_value("기준일자", s_date)
-            self.kw._set_input_value("끝일자", e_date)
-            self.kw._set_input_value("수정주가구분", "0")
+        def tr_process(rqname, code, s_date, e_date, screen_no, next):
+            self.kw._set_input_values([("종목코드", code), ("기준일자", s_date), ("끝일자", e_date), ("수정주가구분", "0")])
             self.kw._comm_rq_data(rqname, "opt10083", next, screen_no)  # lock event loop
 
-        tr_process(rqname, code, 0)
+        tr_process(rqname, code, s_date, e_date, screen_no, 0)
         for _ in range(limit):
-            tr_process(rqname, code, 2)
+            tr_process(rqname, code, s_date, e_date, screen_no, 2)
         return self.tr_ret_data  # data set when post_tr_function
 
     def _on_receive_tr_data(self, screen_no, rqname, trcode, record_name, next, _1, _2, _3, _4):
@@ -123,10 +124,28 @@ class TrManager():
         try:
             post_fn = self.tr_post.fn_table[rqname]
             post_fn(trcode, rqname)
-        except constant.NotDefinePostFunction as e:
+        except KeyError as e:
+            print(constant.NotDefinePostFunction(rqname, trcode))
+        except Exception as e:
             print(e)
 
         self.kw.evt_loop.exit()  # release event loop
+
+    def post_opt10026(self, trcode, rqname):
+        data = self.kw._get_comm_data_ex(trcode, '고저PER')
+        # data[0] = ['027410', 'BGF', '0.14', '-10750', '5', '-50', '-0.46', '478761', '-10750'], ...
+
+        f = ["종목코드", "종목명", "PER", "현재가", "전일대비기호", "전일대비", "등락률", "현재거래량", "매도호가"]
+        # 전일대비기호 : 2(상승), 3(변동없음), 5(하락)
+
+        for d in data:
+            d[2] = float(d[2])
+            d[3] = abs(int(d[3]))
+            d[5] = int(d[5])
+            d[6] = float(d[6])
+            d[7] = int(d[7])
+            d[8] = abs(int(d[8]))
+            self.tr_ret_data.append(dict(zip(f, d)))
 
     def post_opt10080(self, trcode, rqname):
         data = self.kw._get_comm_data_ex(trcode, '주식분봉차트조회')
@@ -138,6 +157,8 @@ class TrManager():
             for field, val in zip(f, [_.strip() for _ in d]):
                 if field in stock_data:
                     stock_data[field] = strutil.convert_data(field, val)
+                    if "체결시간" == field:
+                        stock_data['date'] = stock_data['체결시간']
             self.tr_ret_data.append(stock_data)
 
     def post_opt10081(self, trcode, rqname):
@@ -150,6 +171,8 @@ class TrManager():
             for field, val in zip(f, [_.strip() for _ in d]):
                 if field in stock_data:
                     stock_data[field] = strutil.convert_data(field, val)
+                    if "일자" == field:
+                        stock_data['date'] = stock_data['체결시간']
             self.tr_ret_data.append(stock_data)
 
     def post_opt10082(self, trcode, rqname):
@@ -162,6 +185,8 @@ class TrManager():
             for field, val in zip(f, [_.strip() for _ in d]):
                 if field in stock_data:
                     stock_data[field] = strutil.convert_data(field, val)
+                    if "일자" == field:
+                        stock_data['date'] = stock_data['체결시간']
             self.tr_ret_data.append(stock_data)
 
     def post_opt10083(self, trcode, rqname):
@@ -174,4 +199,6 @@ class TrManager():
             for field, val in zip(f, [_.strip() for _ in d]):
                 if field in stock_data:
                     stock_data[field] = strutil.convert_data(field, val)
+                    if "일자" == field:
+                        stock_data['date'] = stock_data['체결시간']
             self.tr_ret_data.append(stock_data)
