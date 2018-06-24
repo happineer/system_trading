@@ -8,3 +8,7 @@ class NotDefinePostFunction(KeyError):
 
     def __str__(self):
         return self.msg
+
+
+stock_filter = ["KODEX", "TIGER", "KINDEX", "ETN", "KOSEF", "ARIRANG", "KBSTAR",
+                "선물", "TREX", "SMART", "FOCUS", "HANARO", "ATM"]
