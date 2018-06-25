@@ -66,7 +66,7 @@ class TopTrader(QMainWindow, ui):
             code, stock_name = stock
             print("%s/%s" % (i, total))
             stock_name = self.kw.get_master_stock_name(code)
-            data = self.kw.stock_min_data(code, tick='1')  # 1분봉 데이터
+            data = self.kw.stock_price_by_min(code, tick='1')  # 1분봉 데이터
             [d.update({"code": code, "stock_name": stock_name, "market": "kospi"}) for d in data]
             data = sorted(data, key=lambda x: x.get("date"), reverse=True)
             col = self.tt_db.min1_trend
@@ -93,7 +93,7 @@ class TopTrader(QMainWindow, ui):
         col = self.tt_db.day_trend
         ret = col.find().sort({"일자": -1}).limit(1)
         pdb.set_trace()
-        data = self.kw.stock_day_data('207940', date='20180615')  # 삼바
+        data = self.kw.stock_price_by_day('207940', date='20180615')  # 삼바
         [d.update({"code": "207940"}) for d in data]
         col = self.tt_db.day_trend
         col.insert(data)
@@ -101,14 +101,14 @@ class TopTrader(QMainWindow, ui):
         pdb.set_trace()
 
         col = self.tt_db.week_trend
-        data = self.kw.stock_week_data('207940', s_date='20180611', e_date='20180615')  # 삼바
+        data = self.kw.stock_price_by_week('207940', s_date='20180611', e_date='20180615')  # 삼바
         [d.update({"code": "207940"}) for d in data]
         col = self.tt_db.week_trend
         col.insert(data)
         print("Insert Data Completed! (week)")
         pdb.set_trace()
 
-        data = self.kw.stock_month_data('207940', s_date='20180611', e_date='20180615')  # 삼바
+        data = self.kw.stock_price_by_month('207940', s_date='20180611', e_date='20180615')  # 삼바
         [d.update({"code": "207940"}) for d in data]
         col = self.tt_db.month_trend
         col.insert(data)

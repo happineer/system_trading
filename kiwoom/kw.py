@@ -12,6 +12,11 @@ from pprint import pprint
 from kiwoom import custom_error
 from kiwoom.tr import TrManager
 from collections import deque
+from datetime import datetime
+from datetime import timedelta
+from dateutil.relativedelta import relativedelta
+from kiwoom import constant
+from util import common
 
 
 class Kiwoom(QAxWidget):
@@ -286,50 +291,89 @@ class Kiwoom(QAxWidget):
         self.ret_data = self.tr_mgr.opt10026('고저PER', per_condi, "1111")
         return self.ret_data
 
-    def stock_min_data(self, code, tick='1', limit=0):
+    @common.type_check
+    def stock_price_by_min(self, code: str, tick: str, screen_no: str, begin_date: datetime, end_date: datetime):
         """
-        특정 주식종목의 분봉 데이터를 요청하는 함수.
-        :param code: string - 주식코드
-        :param tick: string - 분단위(1, 3, 5, 10, 15, 30, 45, 60)
-        :param limit: int - 반복 request 제한 횟수
+        특정 주식종목의 분봉 데이터를 요청하는 함수. tr요청시 한번에 최대 600개까지만 return 가능.
+        :param code: str - 주식코드
+        :param tick: str - 분단위(1, 3, 5, 10, 15, 30, 45, 60)
+        :param screen_no: str - 화면번호
+        :param begin_date: datetime - oldest date of user request
+        :param end_date: datetime - newest date of user request
         :return:
         """
-        self.ret_data = self.tr_mgr.opt10080('주식분봉', code, tick, '1111', limit)
+        self.ret_data = []
+        while True:
+            # print("Do Transition opt10080")
+            curr_result = self.tr_mgr.opt10080('주식분봉', code, tick, screen_no, begin_date, end_date)
+            if not bool(curr_result):
+                break
+            self.ret_data += curr_result
+            end_date = self.ret_data[-1]['date'] - timedelta(minutes=int(tick))
+            time.sleep(0.2)  # delay
         return self.ret_data
 
-    def stock_day_data(self, code, date, limit=0):
+    @common.type_check
+    def stock_price_by_day(self, code: str, screen_no: str, begin_date: datetime, end_date: datetime):
         """
-        특정 주식종목의 일봉 데이터를 요청하는 함수.
+        특정 주식종목의 일봉 데이터를 요청하는 함수. tr요청시 한번에 최대 600개까지만 return 가능.
         :param code: string - 주식코드
-        :param date: string - YYYYMMDD (20160101 연도4자리, 월 2자리, 일 2자리 형식)
-        :param limit: int - 반복 request 제한 횟수
+        :param screen_no: str - 화면번호
+        :param begin_date: datetime - oldest date of user request
+        :param end_date: datetime - newest date of user request
         :return:
         """
-        self.ret_data = self.tr_mgr.opt10081('주식일봉', code, date, '1111', limit)
+        self.ret_data = []
+        while True:
+            # print("Do Transition opt10081")
+            curr_result = self.tr_mgr.opt10081('주식일봉', code, screen_no, begin_date, end_date)
+            if not bool(curr_result):
+                break
+            self.ret_data += curr_result
+            end_date = self.ret_data[-1]['date'] - timedelta(days=1)
+            time.sleep(0.2)  # delay
         return self.ret_data
 
-    def stock_week_data(self, code, s_date, e_date, limit=0):
+    @common.type_check
+    def stock_price_by_week(self, code: str, screen_no: str, begin_date: datetime, end_date: datetime):
         """
-        특정 주식종목의 주봉 데이터를 요청하는 함수.
+        특정 주식종목의 주봉 데이터를 요청하는 함수. tr요청시 한번에 최대 600개까지만 return 가능.
         :param code: string - 주식코드
-        :param s_date: string - YYYYMMDD (20160101 연도4자리, 월 2자리, 일 2자리 형식)
-        :param e_date: string - YYYYMMDD (20160101 연도4자리, 월 2자리, 일 2자리 형식)
-        :param limit: int - 반복 request 제한 횟수
+        :param screen_no: str - 화면번호
+        :param begin_date: datetime - oldest date of user request
+        :param end_date: datetime - newest date of user request
         :return:
         """
-        self.ret_data = self.tr_mgr.opt10082('주식주봉', code, s_date, e_date, '1111', limit)
+        self.ret_data = []
+        while True:
+            # print("Do Transition opt10082")
+            curr_result = self.tr_mgr.opt10082('주식주봉', code, screen_no, begin_date, end_date)
+            if not bool(curr_result):
+                break
+            self.ret_data += curr_result
+            end_date = self.ret_data[-1]['date'] - timedelta(weeks=1)
+            time.sleep(0.2)  # delay
         return self.ret_data
 
-    def stock_month_data(self, code, s_date, e_date, limit=0):
+    @common.type_check
+    def stock_price_by_month(self, code: str, screen_no: str, begin_date: datetime, end_date: datetime):
         """
-        특정 주식종목의 월봉 데이터를 요청하는 함수.
+        특정 주식종목의 월봉 데이터를 요청하는 함수. tr요청시 한번에 최대 600개까지만 return 가능.
         :param code: string - 주식코드
-        :param s_date: string - YYYYMMDD (20160101 연도4자리, 월 2자리, 일 2자리 형식)
-        :param e_date: string - YYYYMMDD (20160101 연도4자리, 월 2자리, 일 2자리 형식)
-        :param limit: int - 반복 request 제한 횟수
+        :param screen_no: str - 화면번호
+        :param begin_date: datetime - oldest date of user request
+        :param end_date: datetime - newest date of user request
         :return:
         """
-        self.ret_data = self.tr_mgr.opt10083('주식월봉', code, s_date, e_date, '1111', limit)
+        self.ret_data = []
+        while True:
+            # print("Do Transition opt10083")
+            curr_result = self.tr_mgr.opt10083('주식월봉', code, screen_no, begin_date, end_date)
+            if not bool(curr_result):
+                break
+            self.ret_data += curr_result
+            end_date = self.ret_data[-1]['date'] - relativedelta(months=1)
+            time.sleep(0.2)  # delay
         return self.ret_data
 
     def get_comm_real_data(self, code, fid):

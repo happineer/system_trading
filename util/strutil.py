@@ -16,7 +16,7 @@ def convert_data(f, v):
     if f in ["현재가", "거래량", "시가", "고가", "저가", "전일종가", "거래대금"]:
         if v[0] in ["+", "-"]:
             v = v[1:]
-        return int(v)
+        return float(v)
     elif f in ["체결시간"]:
         regexp = "(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})"
         args = (int(n) for n in re.search(regexp, v).groups())
