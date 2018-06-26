@@ -11,6 +11,7 @@ import logging.config
 from pprint import pprint
 from kiwoom import custom_error
 from kiwoom.tr import TrManager
+from kiwoom.tr import TrController
 from collections import deque
 from datetime import datetime
 from datetime import timedelta
@@ -26,9 +27,9 @@ class Kiwoom(QAxWidget):
         self.evt_loop = QEventLoop()  # lock/release event loop
         self.ret_data = None
         self.req_queue = deque(maxlen=10)
-
         self._create_kiwoom_instance()
         self._set_signal_slots()
+        self.tr_controller = TrController()
 
     def _create_kiwoom_instance(self):
         self.setControl("KHOPENAPI.KHOpenAPICtrl.1")
@@ -117,7 +118,25 @@ class Kiwoom(QAxWidget):
         :param next: int - 연속조회유무 (0: 연속조회 없음, 2: 연속 조회)
         :return:
         """
-        pass
+        print("_on_receive_tr_condition")
+        pdb.set_trace()
+        max_char_cnt = 60
+        print("[조건 검색 결과]".center(max_char_cnt, '-'))
+        data = [
+            ("screen_no", screen_no),
+            ("code_list", code_list),
+            ("condi_name", condi_name),
+            ("condi_index", condi_index),
+            ("next", next)
+        ]
+        max_key_cnt = max(len(d[0]) for d in data)
+        for d in data:
+            key = ("* " + d[0]).rjust(max_key_cnt)
+            print("{0}: {1}".format(key, d[1]))
+        print("-" * max_char_cnt)
+
+        self.condition_search_result = code_list.split(";")[:-1]
+        self.evt_loop.exit()  # lock event
 
     def _on_receive_condition_ver(self, ret_code, condition_text):
         """
@@ -127,7 +146,17 @@ class Kiwoom(QAxWidget):
         :param condition_text: string - 사용자 조건식 문자열(100^조건명1;101^조건명2; ...)
         :return: 없음
         """
-        pass
+        if ret_code != 1:
+            print("[Error] Fail to load user condition")
+            return False
+
+        print("Success to load user condition")
+        condi_name_list = self.get_condition_name_list()
+        self.condition = {}
+        for condition_info in condi_name_list.split(";")[:-1]:
+            condi_index, condi_name = condition_info.split("^")
+            self.condition[condi_name] = condi_index
+        self.evt_loop.exit()
 
     def _on_receive_chejan_data(self, gubun, item_cnt, fid_list):
         """
@@ -218,7 +247,7 @@ class Kiwoom(QAxWidget):
     def get_code_list_by_market(self, market):
         """
         kospi, kosdaq 시장별 주식종목 리스트를 반환한다.
-        :param market: String  0:kospi, 10:kosdaq
+        :param market: str  0:kospi, 10:kosdaq
         :return: code_list: list - [code_name1:str, code_name2:str, ..., code_nameN:str]
         """
         if isinstance(market, int):
@@ -227,22 +256,37 @@ class Kiwoom(QAxWidget):
         code_list = code_list.strip(';').split(';')
         return code_list
 
+    def get_branch_code_name(self):
+        """
+        회원사 코드와 이름을 반환합니다.
+        :return: str - 회원사코드|회원사명;회원사코드|회원사명
+        """
+        ret = self.dynamicCall("GetBranchCodeName()")
+        return dict([tuple(d.split("|")) for d in ret.split(";")])
+
     def get_condition_load(self):
         """
+        서버에 저장된 사용자 조건식을 조회해서 임시로 파일에 저장.
         사용자 조건검색 목록을 서버에 요청합니다.
         조건검색 목록을 모두 수신하면 OnReceiveConditionVer()이벤트 함수가 호출됩니다.
         :return: 1:성공, others:실패
         """
-        pdb.set_trace()
         ret = self.dynamicCall("GetConditionLoad()")
         if ret != 1:
             return False
-
-        self.condition_loop = QEventLoop()
-        self.condition_loop.exec_()
+        self.evt_loop.exec_()
         return self.condition
 
-    def req_condition_search(self, screen_no, condi_name, condi_index, search_type):
+    def get_condition_name_list(self):
+        """
+        조건검색 조건명 리스트를 받아온다.
+        :return: str - 조건명 리스트(인덱스^조건명)
+        """
+        ret = self.dynamicCall("GetConditionNameList()")
+        return ret
+
+    @common.type_check
+    def send_condition(self, screen_no: str, condi_name: str, condi_index: int, search_type: int):
         """
         사용자 조건검색식을 이용하여 검색을 하고, 검색된 종목을 return 한다.
         이 메서드로 얻고자 하는 것은 해당 조건에 맞는 종목코드이다.
@@ -252,35 +296,33 @@ class Kiwoom(QAxWidget):
         1회성 조회의 경우, receiveTrCondition() 이벤트로 결과값이 전달되며
         실시간 조회의 경우, receiveTrCondition()과 receiveRealCondition() 이벤트로 결과값이 전달된다.
 
-        :param screen_no: string - 화면번호
-        :param condi_name: string - 조건식이름
+        :param screen_no: str - 화면번호
+        :param condi_name: str - 조건식이름
         :param condi_index: int - 조건식명 인덱스
         :param search_type: int - 조회구분(0:조건검색, 1:실시간 조건검색)
-        :return: condition_search_resul: list - 종목코드 리스트
+        :return: condition_search_result: list - 종목코드 리스트
         """
         # 화면번호, 조건식이름, 조건명인덱스, 조회구분(0:조건검색, 1:실시간 조건검색)
         print("Start to Condition(%s) Search !" % condi_name)
         ret = self.dynamicCall("SendCondition(QString, QString, int, int)",
                                screen_no, condi_name, condi_index, search_type)
         if not ret:
-            raise custom_error.KiwoomProcessingError("sendCondition(): 조건검색 요청 실패")
-        self.condition_loop = QEventLoop()
-        self.condition_loop.exec_()
+            raise constant.KiwoomProcessingError("sendCondition(): 조건검색 요청 실패")
+        self.evt_loop.exec_()  # lock event
 
         return self.condition_search_result
 
-    def req_condition_search_stop(self, screen_no, condi_name, condi_index):
+    def send_condition_stop(self, screen_no, condi_name, condi_index):
         """
-        실시간 조건검색을 중지한다.
-        :param screen_no: string - 화면번호
-        :param condi_name: string - 조건식이름
+        실시간 조건검색을 중지한다. (=조건검색 실시간 중지TR을 송신한다)
+        :param screen_no: str - 화면번호
+        :param condi_name: str - 조건식이름
         :param condi_index: int - 조건식명 인덱스
-        :return: ret: int - 맞나 ??
+        :return:
         """
         print("Stop to Real Condition(%s) Search !" % condi_name)
-        ret = self.dynamicCall("SendConditionStop(QString, QString, int)",
-                               screen_no, condi_name, condi_index)
-        return ret
+        self.dynamicCall("SendConditionStop(QString, QString, int)",
+                         screen_no, condi_name, condi_index)
 
     def get_per_info(self, per_condi):
         """
@@ -376,15 +418,78 @@ class Kiwoom(QAxWidget):
             time.sleep(0.2)  # delay
         return self.ret_data
 
+    def get_master_listed_stock_cnt(self, code):
+        """
+        종목코드의 상장주식수를 반환한다.
+        :param code: str - 종목코드
+        :return: int - 상장주식수
+        """
+        ret = self.dynamicCall("GetMasterListedStockCnt(QString)", code)
+        return ret
+
+    def get_master_construction(self, code):
+        """
+        종목코드의 감리구분을 반환한다.
+        :param code: str - 종목코드
+        :return: str - 감리구분 (정상, 투자주의, 투자경고, 투자위험, 투자주의환기종목)
+        """
+        ret = self.dynamicCall("GetMasterConstruction(QString)", code)
+        return ret
+
+    def get_master_listed_stock_date(self, code):
+        """
+        종목코드의 상장일을 반환한다.
+        :param code: str - 종목코드
+        :return: str - 상장일 (YYYYMMDD)
+        """
+        ret = self.dynamicCall("GetMasterListedStockDate(QString)", code)
+        return ret
+
+    def get_master_last_price(self, code):
+        """
+        종목코드의 전일가를 반환한다.
+        :param code: str - 종목코드
+        :return: str - 전일가 (ex. '00085000')
+        """
+        ret = self.dynamicCall("GetMasterLastPrice(QString)", code)
+        return ret
+
+    def get_master_stock_state(self, code):
+        """
+        종목코드의 종목상태를 반환한다.
+        :param code: str - 종목코드
+        :return: str - 종목상태(정상, 증거금100%, 거래정지, 관리종목, 감리종목, 투자유의종목, 담보대출, 액면분할, 신용가능)
+                       ex. LG전자 -> '증거금20%|담보대출|신용가능'
+        """
+        ret = self.dynamicCall("GetMasterStockState(QString)", code)
+        return ret
+
     def get_comm_real_data(self, code, fid):
         """
         실시간 데이터 획득 메서드
         이 메서드는 반드시 receiveRealData() 이벤트 메서드가 호출될 때, 그 안에서 사용해야 합니다.
-        :param code: string - 종목코드
+        :param code: str - 종목코드
         :param fid: - 실시간 타입에 포함된 fid
         :return: string - fid에 해당하는 데이터
         """
         ret = self.dynamicCall("GetCommRealData(QString, int)", code, fid)
+        return ret
+
+    def get_login_info(self, tag):
+        """
+        로그인한 사용자 정보를 반환한다.
+
+        :return: str - 반환값
+        BSTR sTag에 들어 갈 수 있는 값은 아래와 같음
+        “ACCOUNT_CNT” – 전체 계좌 개수를 반환한다.
+        "ACCNO" – 전체 계좌를 반환한다. 계좌별 구분은 ‘;’이다.
+        “USER_ID” - 사용자 ID를 반환한다.
+        “USER_NAME” – 사용자명을 반환한다.
+        “KEY_BSECGB” – 키보드보안 해지여부. 0:정상, 1:해지
+        “FIREW_SECGB” – 방화벽 설정 여부. 0:미설정, 1:설정, 2:해지
+        Ex) openApi.GetLoginInfo(“ACCOUNT_CNT”);
+        """
+        ret = self.dynamicCall("GetLoginInfo(QString)", tag)
         return ret
 
     def real_stock_data(self, screen_no, codes, fids, reg_type):
@@ -437,6 +542,10 @@ class Kiwoom(QAxWidget):
                                [rqname, screen_no, acc_no, order_type, code, quantity, price, hoga_gubun, orig_order_no])
         return ret
 
+    def get_api_module_path(self):
+        ret = self.dynamicCall("GetAPIModulePath()")
+        return ret
+
     def _get_comm_data_ex(self, trcode, output_name):
         """
         GetCommData 로 하나씩 받아오지 않고, 여러개의 값을 한번에 배열로 읽어옴.
@@ -476,15 +585,17 @@ class Kiwoom(QAxWidget):
         :param screen_no: string - 화면번호
         :return:
         """
-        self.dynamicCall("CommRqData(QString, QString, int, QString)", rqname, trcode, int(next), screen_no)
+        self.tr_controller.prevent_excessive_request()
+        ret_code = self.dynamicCall("CommRqData(QString, QString, int, QString)", rqname, trcode, int(next), screen_no)
         # when receive data, invoke self._on_receive_tr_data
         self.evt_loop.exec_()  # lock event loop
+        return ret_code
 
     def _get_repeat_cnt(self, trcode, rqname):
         """
         레코드 반복횟수를 반환한다.
-        :param trcode: string - TRansaction name
-        :param rqname: string - TR 요청명(commRqData() 메소드 호출시 사용된 requestName)
+        :param trcode: str - TRansaction name
+        :param rqname: str - TR 요청명(commRqData() 메소드 호출시 사용된 requestName)
         :return:
         """
         return self.dynamicCall("GetRepeatCnt(QString, QString)", trcode, rqname)
