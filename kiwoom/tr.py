@@ -1,9 +1,13 @@
 from functools import wraps
+
+from kiwoom.constant import ReturnCode
 from util import strutil
 from kiwoom.tr_post import PostFn
 from kiwoom import constant
 from datetime import datetime
 import pdb
+from collections import deque
+import time
 
 
 class TrManager():
@@ -41,21 +45,28 @@ class TrManager():
         :return:
         """
         def tr_process(rqname, code, tick, screen_no, next):
+            self.kw.code = code
             self.kw._set_input_values([("종목코드", code), ("틱범위", tick), ("수정주가구분", "0")])
-            self.kw._comm_rq_data(rqname, "opt10080", next, screen_no)  # lock event loop
+            ret_code = self.kw._comm_rq_data(rqname, "opt10080", next, screen_no)  # lock event loop
+            if ReturnCode.OP_ERR_NONE != ret_code:
+                raise Exception("[KiWoom Error][opt10080] %s" % ReturnCode.CAUSE[ret_code])
+        try:
+            tr_process(rqname, code, tick, screen_no, 0)
+            # data(self.tr_ret_data) is set when post_tr_function
+            if self.tr_next == '0':
+                return [d for d in self.tr_ret_data if begin_date <= d['date'] <= end_date]
 
-        tr_process(rqname, code, tick, screen_no, 0)
-        # data(self.tr_ret_data) is set when post_tr_function
-        if self.tr_next == '0':
+            if bool(begin_date) and begin_date >= self.tr_ret_data[-1]['date']:
+                return [d for d in self.tr_ret_data if begin_date <= d['date'] <= end_date]
+
+            while self.tr_next == '2' and begin_date < self.tr_ret_data[-1]['date']:
+                tr_process(rqname, code, tick, screen_no, 2)
+
             return [d for d in self.tr_ret_data if begin_date <= d['date'] <= end_date]
+        except Exception as e:
+            print(e)
 
-        if bool(begin_date) and begin_date >= self.tr_ret_data[-1]['date']:
-            return [d for d in self.tr_ret_data if begin_date <= d['date'] <= end_date]
-
-        while self.tr_next == '2' and begin_date < self.tr_ret_data[-1]['date']:
-            tr_process(rqname, code, tick, screen_no, 2)
-
-        return [d for d in self.tr_ret_data if begin_date <= d['date'] <= end_date]
+        return []
 
     def post_opt10080(self, trcode, rqname, next):
         data = self.kw._get_comm_data_ex(trcode, '주식분봉차트조회')
@@ -63,12 +74,14 @@ class TrManager():
              "대업종구분", "소업종구분", "종목정보", "수정주가이벤트", "전일종가"]
 
         for d in data:
-            stock_data = {"현재가": 0, "거래량": 0, "체결시간": None, "시가": 0, "고가": 0, "저가": 0}
+            stock_data = {"현재가": 0, "거래량": 0, "체결시간": 0, "시가": 0, "고가": 0, "저가": 0}
             for field, val in zip(f, [_.strip() for _ in d]):
                 if field in stock_data:
                     stock_data[field] = strutil.convert_data(field, val)
                     if "체결시간" == field:  # YYYYMMDDHHMMSS
                         stock_data['date'] = stock_data['체결시간']
+                        del stock_data['체결시간']
+                    stock_data['code'] = self.kw.code
             self.tr_ret_data.append(stock_data)
         self.tr_next = next
 
@@ -88,6 +101,7 @@ class TrManager():
         end_date_str = end_date.strftime("%Y%m%d")
 
         def tr_process(rqname, code, screen_no, end_date_str, next):
+            self.kw.code = code
             self.kw._set_input_values([("종목코드", code), ("기준일자", end_date_str), ("수정주가구분", "0")])
             self.kw._comm_rq_data(rqname, "opt10081", next, screen_no)  # lock event loop
 
@@ -107,12 +121,14 @@ class TrManager():
              "수정주가구분", "수정비욜", "대업종구분", "소업종구분", "종목정보", "수정주가이벤트", "전일종가"]
 
         for d in data:
-            stock_data = {"종목코드": 0, "현재가": 0, "거래량": 0, "거래대금": 0, "일자": None, "시가": 0, "고가": 0, "저가": 0}
+            stock_data = {"현재가": 0, "거래량": 0, "거래대금": 0, "일자": 0, "시가": 0, "고가": 0, "저가": 0}
             for field, val in zip(f, [_.strip() for _ in d]):
                 if field in stock_data:
                     stock_data[field] = strutil.convert_data(field, val)
                     if "일자" == field:
                         stock_data['date'] = stock_data['일자']
+                        del stock_data['일자']
+                    stock_data['code'] = self.kw.code
             self.tr_ret_data.append(stock_data)
         self.tr_next = next
 
@@ -134,6 +150,7 @@ class TrManager():
         end_date_str = end_date.strftime("%Y%m%d")
 
         def tr_process(rqname, code, screen_no, begin_date_str, end_date_str, next):
+            self.kw.code = code
             self.kw._set_input_values([("종목코드", code), ("기준일자", end_date_str), ("끝일자", begin_date_str), ("수정주가구분", "0")])
             self.kw._comm_rq_data(rqname, "opt10082", next, screen_no)  # lock event loop
 
@@ -153,12 +170,14 @@ class TrManager():
              "수정주가구분", "수정비욜", "대업종구분", "소업종구분", "종목정보", "수정주가이벤트", "전일종가"]
 
         for d in data:
-            stock_data = {"현재가": 0, "거래량": 0, "거래대금": 0, "일자": None, "시가": 0, "고가": 0, "저가": 0}
+            stock_data = {"현재가": 0, "거래량": 0, "거래대금": 0, "일자": 0, "시가": 0, "고가": 0, "저가": 0}
             for field, val in zip(f, [_.strip() for _ in d]):
                 if field in stock_data:
                     stock_data[field] = strutil.convert_data(field, val)
                     if "일자" == field:
                         stock_data['date'] = stock_data['일자']
+                        del stock_data['일자']
+                    stock_data['code'] = self.kw.code
             self.tr_ret_data.append(stock_data)
         self.tr_next = next
 
@@ -180,6 +199,7 @@ class TrManager():
         end_date_str = end_date.strftime("%Y%m%d")
 
         def tr_process(rqname, code, screen_no, begin_date_str, end_date_str, next):
+            self.kw.code = code
             self.kw._set_input_values([("종목코드", code), ("기준일자", end_date_str), ("끝일자", begin_date_str), ("수정주가구분", "0")])
             self.kw._comm_rq_data(rqname, "opt10083", next, screen_no)  # lock event loop
 
@@ -199,12 +219,14 @@ class TrManager():
              "수정주가구분", "수정비욜", "대업종구분", "소업종구분", "종목정보", "수정주가이벤트", "전일종가"]
 
         for d in data:
-            stock_data = {"현재가": 0, "거래량": 0, "거래대금": 0, "일자": None, "시가": 0, "고가": 0, "저가": 0}
+            stock_data = {"현재가": 0, "거래량": 0, "거래대금": 0, "일자": 0, "시가": 0, "고가": 0, "저가": 0}
             for field, val in zip(f, [_.strip() for _ in d]):
                 if field in stock_data:
                     stock_data[field] = strutil.convert_data(field, val)
                     if "일자" == field:
                         stock_data['date'] = stock_data['일자']
+                        del stock_data['일자']
+                    stock_data['code'] = self.kw.code
             self.tr_ret_data.append(stock_data)
         self.tr_next = next
 
@@ -224,7 +246,7 @@ class TrManager():
             post_fn = self.tr_post.fn_table[rqname]
             post_fn(trcode, rqname, next)
         except KeyError as e:
-            print(constant.NotDefinePostFunction(rqname, trcode))
+            print(constant.NotDefinePostFunctionError(rqname, trcode))
         except Exception as e:
             print(e)
 
@@ -245,3 +267,21 @@ class TrManager():
             d[7] = int(d[7])
             d[8] = abs(int(d[8]))
             self.tr_ret_data.append(dict(zip(f, d)))
+
+
+class TrController(object):
+    def __init__(self):
+        self.queue = deque(maxlen=5)
+
+    def prevent_excessive_request(self):
+        # pdb.set_trace()
+        self.queue.append(datetime.now())
+        if len(self.queue) < 5:
+            return
+
+        duration = (self.queue[-1] - self.queue[0]).seconds
+
+        if duration < 3:
+            t_delay = 3 - duration
+            print("[TrController] Delay {}s for avoiding excessive request status".format(t_delay))
+            time.sleep(t_delay)
