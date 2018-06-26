@@ -119,7 +119,6 @@ class Kiwoom(QAxWidget):
         :return:
         """
         print("_on_receive_tr_condition")
-        pdb.set_trace()
         max_char_cnt = 60
         print("[조건 검색 결과]".center(max_char_cnt, '-'))
         data = [
@@ -135,7 +134,11 @@ class Kiwoom(QAxWidget):
             print("{0}: {1}".format(key, d[1]))
         print("-" * max_char_cnt)
 
-        self.condition_search_result = code_list.split(";")[:-1]
+        if bool(code_list):
+            self.condition_search_result = code_list.strip(';').split(";")
+        else:
+            self.condition_search_result = []
+
         self.evt_loop.exit()  # lock event
 
     def _on_receive_condition_ver(self, ret_code, condition_text):
@@ -306,7 +309,7 @@ class Kiwoom(QAxWidget):
         print("Start to Condition(%s) Search !" % condi_name)
         ret = self.dynamicCall("SendCondition(QString, QString, int, int)",
                                screen_no, condi_name, condi_index, search_type)
-        if not ret:
+        if ret == 0:
             raise constant.KiwoomProcessingError("sendCondition(): 조건검색 요청 실패")
         self.evt_loop.exec_()  # lock event
 
