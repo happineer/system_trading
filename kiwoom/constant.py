@@ -328,12 +328,14 @@ class RealTypeFid(object):
         }
     }
 
+
 # 업종코드
 class StockCategoryCode(object):
     pass
 
+
 # 주가변동
-class StockPriceFluctuation(object)
-    up = 5  # 상승
-    down = 2  # 하락
-    steadiness = 3  # 보합
+class StockPriceFluctuation(object):
+    UP = 5  # 상승
+    DOWN = 2  # 하락
+    STEADINESS = 3  # 보합

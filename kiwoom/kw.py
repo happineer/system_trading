@@ -306,6 +306,19 @@ class Kiwoom(QAxWidget):
         ret = self.dynamicCall("GetConditionNameList()")
         return ret
 
+    def get_stock_infos(self, code_list, screen_no, type_flag, next):
+        """
+        특정주식중복조회
+        :param code_list: str - 종목리스트 (ex. code1;code2;...)
+        :param screen_no: str - 화면번호
+        :param type_flag: int - 조회구분 (0:주식관심종목정보, 3:선물옵션관심종목정보)
+        :param next: int - 연속조회요청
+        :return: list - 주식정보를 list형태로 반환
+        """
+        ret = self.tr_mgr.optkwfid('주식중복조회', code_list, screen_no, type_flag, next)
+
+        return ret
+
     @common.type_check
     def send_condition(self, screen_no: str, condi_name: str, condi_index: int, search_type: int):
         """
@@ -611,6 +624,22 @@ class Kiwoom(QAxWidget):
         ret_code = self.dynamicCall("CommRqData(QString, QString, int, QString)", rqname, trcode, int(next), screen_no)
         # when receive data, invoke self._on_receive_tr_data
         self.evt_loop.exec_()  # lock event loop
+        return ret_code
+
+    def _comm_kw_rq_data(self, rqname, code_list, screen_no, type_flag, next):
+        """
+        특정멀티주식정보를 요청한다.
+        :param rqname:
+        :param code_list:
+        :param screen_no:
+        :param type_flag:
+        :param next:
+        :return:
+        """
+        code_cnt = len(code_list.strip(";").split(";"))
+        ret_code = self.dynamicCall("CommKwRqData(QString, int, int, int, QString, QString)",
+                                    code_list, next, code_cnt, type_flag, rqname, screen_no)
+        self.evt_loop.exec_()
         return ret_code
 
     def _get_repeat_cnt(self, trcode, rqname):
