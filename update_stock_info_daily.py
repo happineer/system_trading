@@ -61,7 +61,7 @@ class TopTrader(QMainWindow, ui):
         self.login()
         kospi_code_list = self.kw.get_code_list_by_market(0)
         stock_list = [[c, self.kw.get_master_stock_name(c)] for c in kospi_code_list]
-        stock_list = [(c, name) for c, name in stock_list if not any(map(lambda x: x in name, constant.stock_filter))]
+        stock_list = [(c, name) for c, name in stock_list if not any(map(lambda x: x in name, constant.FILTER_KEYWORD))]
 
         total = len(stock_list)
         for i, stock in enumerate(stock_list, 1):

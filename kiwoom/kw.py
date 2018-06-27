@@ -3,6 +3,7 @@ from PyQt5.QtWidgets import *
 from PyQt5.QAxContainer import *
 from PyQt5.QtCore import *
 import time
+import os
 import pandas as pd
 import pdb
 import random
@@ -65,7 +66,13 @@ class Kiwoom(QAxWidget):
         """
         print("code:", code, type(code))
         print("real_type:", real_type, type(real_type))
-        print("real_data:", real_data, type(real_data))
+        # print("real_data:", real_data, type(real_data))
+        print("real_data:", repr(real_data))
+
+        print("cwd:", os.getcwd())
+        with open(real_type + ".txt", "a") as f:
+            f.write(real_data + "\n")
+
         fid_data = {
             '주식시세': {
                 10: '현재가',
@@ -87,12 +94,15 @@ class Kiwoom(QAxWidget):
                 311: '시가총액(억)'
             }
         }
+        """
         result = []
         for fid in fid_data[real_type]:
-            value = self.get_comm_real_data(code, fid)
+            value = self._get_comm_real_data(code, fid)
             result.append(value)
             print("Value: " + value)
+            
         return result
+        """
 
     def _on_receive_real_condition(self, code, update_type, condi_name, condi_index):
         """
@@ -119,7 +129,6 @@ class Kiwoom(QAxWidget):
         :return:
         """
         print("_on_receive_tr_condition")
-        pdb.set_trace()
         max_char_cnt = 60
         print("[조건 검색 결과]".center(max_char_cnt, '-'))
         data = [
@@ -135,7 +144,11 @@ class Kiwoom(QAxWidget):
             print("{0}: {1}".format(key, d[1]))
         print("-" * max_char_cnt)
 
-        self.condition_search_result = code_list.split(";")[:-1]
+        if bool(code_list):
+            self.condition_search_result = code_list.strip(';').split(";")
+        else:
+            self.condition_search_result = []
+
         self.evt_loop.exit()  # lock event
 
     def _on_receive_condition_ver(self, ret_code, condition_text):
@@ -166,18 +179,26 @@ class Kiwoom(QAxWidget):
         :param fid_list: string - 데이터리스트 (데이터 구분은 ';')
         :return:
         """
-        pass
+        print("(!)[Callback] _on_receive_chejan_data")
+        print("gubun(0:주문체결통보, 1:잔고통보, 3:특이신호): ", gubun)
+        print("item_cnt: ", item_cnt)
+        print("fid_list: ", fid_list)
+
 
     def _on_receive_msg(self, screen_no, rqname, trcode, msg):
         """
         Kiwoom Receive Msg Callback, 서버통신 후 메시지를 받은 시점을 알려준다.
-        :param screen_no: string - 화면번호
-        :param rqname: string - TR 요청명(commRqData() 메소드 호출시 사용된 requestName)
-        :param trcode: string - TRansaction name
-        :param msg: string - 서버 메시지
+        :param screen_no: str - 화면번호
+        :param rqname: str - TR 요청명(commRqData() 메소드 호출시 사용된 requestName)
+        :param trcode: str - TRansaction name
+        :param msg: str - 서버 메시지
         :return:
         """
-        pass
+        print("(!)[Callback] _on_receive_msg")
+        print("screen_no: ", screen_no)
+        print("rqname: ", rqname)
+        print("trcode(TRansaction name): ", trcode)
+        print("msg: ", msg)
 
     def _comm_connect(self):
         """
@@ -306,7 +327,7 @@ class Kiwoom(QAxWidget):
         print("Start to Condition(%s) Search !" % condi_name)
         ret = self.dynamicCall("SendCondition(QString, QString, int, int)",
                                screen_no, condi_name, condi_index, search_type)
-        if not ret:
+        if ret == 0:
             raise constant.KiwoomProcessingError("sendCondition(): 조건검색 요청 실패")
         self.evt_loop.exec_()  # lock event
 
@@ -464,17 +485,6 @@ class Kiwoom(QAxWidget):
         ret = self.dynamicCall("GetMasterStockState(QString)", code)
         return ret
 
-    def get_comm_real_data(self, code, fid):
-        """
-        실시간 데이터 획득 메서드
-        이 메서드는 반드시 receiveRealData() 이벤트 메서드가 호출될 때, 그 안에서 사용해야 합니다.
-        :param code: str - 종목코드
-        :param fid: - 실시간 타입에 포함된 fid
-        :return: string - fid에 해당하는 데이터
-        """
-        ret = self.dynamicCall("GetCommRealData(QString, int)", code, fid)
-        return ret
-
     def get_login_info(self, tag):
         """
         로그인한 사용자 정보를 반환한다.
@@ -492,7 +502,7 @@ class Kiwoom(QAxWidget):
         ret = self.dynamicCall("GetLoginInfo(QString)", tag)
         return ret
 
-    def real_stock_data(self, screen_no, codes, fids, reg_type):
+    def set_real_reg(self, screen_no, codes, fids, reg_type):
         """
         실시간 데이터 요청 메서드
         종목코드와 fid 리스트를 이용해서 실시간 데이터를 요청하는 메서드입니다.
@@ -508,14 +518,15 @@ class Kiwoom(QAxWidget):
                                   처음등록할때에는 꼭 real_type이 0이어야 하고, 이후부터 1로 설정가능.
         """
         print("dynamic Call - SetRealReg")
-        self.dynamicCall("SetRealReg(QString, QString, QString, QString)", screen_no, codes, fids, reg_type)
+        ret = self.dynamicCall("SetRealReg(QString, QString, QString, QString)", screen_no, codes, fids, reg_type)
+        return ret
 
     def set_real_remove(self, screen_no, code):
         """
         실시간 데이터 중지 메서드
         setRealReg() 메서드로 등록한 종목만, 이 메서드를 통해 실시간 데이터 받기를 중지 시킬 수 있습니다.
-        :param screen_no: string - 화면번호 또는 ALL 키워드 사용가능
-        :param code: string - 종목코드 또는 ALL 키워드 사용가능
+        :param screen_no: str - 화면번호 또는 "ALL" 키워드 사용가능
+        :param code: str - 종목코드 또는 "ALL" 키워드 사용가능
         """
         self.dynamicCall("SetRealRemove(QString, QString)", screen_no, code)
 
@@ -544,6 +555,17 @@ class Kiwoom(QAxWidget):
 
     def get_api_module_path(self):
         ret = self.dynamicCall("GetAPIModulePath()")
+        return ret
+
+    def _get_comm_real_data(self, code, fid):
+        """
+        실시간 데이터 획득 메서드
+        이 메서드는 반드시 receiveRealData() 이벤트 메서드가 호출될 때, 그 안에서 사용해야 합니다.
+        :param code: str - 종목코드
+        :param fid: - 실시간 타입에 포함된 fid
+        :return: string - fid에 해당하는 데이터
+        """
+        ret = self.dynamicCall("GetCommRealData(QString, int)", code, fid)
         return ret
 
     def _get_comm_data_ex(self, trcode, output_name):

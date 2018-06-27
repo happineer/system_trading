@@ -242,6 +242,7 @@ class TrManager():
         :param record_name: string - Record name
         :param next: string - 연속조회유무 ('0': 남은 데이터 없음, '2': 남은 데이터 있음)
         """
+        print("(!)[Callback] _on_receive_tr_data")
         try:
             post_fn = self.tr_post.fn_table[rqname]
             post_fn(trcode, rqname, next)
