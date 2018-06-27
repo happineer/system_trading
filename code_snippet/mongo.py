@@ -57,7 +57,7 @@ class TopTrader(QMainWindow, ui):
         code_list = self.kw.get_code_list_by_market(0)
         # except keyword
         stock_list = [[c, self.kw.get_master_stock_name(c)] for c in code_list]
-        stock_list = [(c, name) for c, name in stock_list if not any(map(lambda x: x in name, constant.stock_filter))]
+        stock_list = [(c, name) for c, name in stock_list if not any(map(lambda x: x in name, constant.FILTER_KEYWORD))]
 
         total = len([])
         pdb.set_trace()
