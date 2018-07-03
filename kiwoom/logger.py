@@ -4,12 +4,12 @@ from singleton_decorator import singleton
 
 
 @singleton
-class TTlog():
+class KWlog():
     def __init__(self):
-        self.logger = logging.getLogger("TopTrader")
+        self.logger = logging.getLogger("KW")
         formatter = logging.Formatter('[%(asctime)s|%(levelname)s|%(funcName)s:%(lineno)s] %(message)s')
         file_max_byte = 1024 * 1024 * 10  # 10MB
-        log_path = "D:/work/TopTrader_log/TopTrader.log"
+        log_path = "D:/work/TopTrader_log/KW.log"
         file_handler = logging.handlers.RotatingFileHandler(log_path, maxBytes=file_max_byte, backupCount=1000)
         stream_handler = logging.StreamHandler()
         file_handler.setFormatter(formatter)

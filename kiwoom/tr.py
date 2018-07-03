@@ -7,12 +7,15 @@ from kiwoom import constant
 from datetime import datetime
 import pdb
 from collections import deque
+from collections import OrderedDict
 import time
+import ast
 
 
 class TrManager():
     def __init__(self, kw):
         self.kw = kw
+        self.logger = self.kw.logger
         self.tr_ret_data = None
         self.tr_next = 0
         self.tr_continue = None
@@ -64,7 +67,7 @@ class TrManager():
 
             return [d for d in self.tr_ret_data if begin_date <= d['date'] <= end_date]
         except Exception as e:
-            print(e)
+            self.logger.error(e)
 
         return []
 
@@ -242,14 +245,15 @@ class TrManager():
         :param record_name: string - Record name
         :param next: string - 연속조회유무 ('0': 남은 데이터 없음, '2': 남은 데이터 있음)
         """
-        print("(!)[Callback] _on_receive_tr_data")
+        self.logger.info("(!)[Callback] _on_receive_tr_data")
         try:
-            post_fn = self.tr_post.fn_table[rqname]
+            post_fn = eval('self.post_' + trcode.lower())
+            # post_fn = self.tr_post.fn_table[rqname]
             post_fn(trcode, rqname, next)
-        except KeyError as e:
-            print(constant.NotDefinePostFunctionError(rqname, trcode))
+        except AttributeError as e:
+            self.logger.error(e)
         except Exception as e:
-            print(e)
+            self.logger.error(e)
 
         self.kw.evt_loop.exit()  # release event loop
 
@@ -269,20 +273,125 @@ class TrManager():
             d[8] = abs(int(d[8]))
             self.tr_ret_data.append(dict(zip(f, d)))
 
+    @init_tr_ret_data
+    def optkwfid(self, rqname, code_list, screen_no, type_flag, next):
+        """
+        관심종목을 조회한다.
+        :param rqname: str - 사용자 요청
+        :param code_list: str - 종목리스트 (ex. code1;code2;...)
+        :param screen_no: str - 화면번호
+        :param type_flag: int - 조회구분 (0:주식관심종목정보, 3:선물옵션관심종목정보)
+        :param next: int - 연속조회요청
+        :return: list - 주식정보를 list형태로 반환
+        """
+        ret = self.kw._comm_kw_rq_data(rqname, code_list, screen_no, type_flag, next)  # lock event loop
+        return self.tr_ret_data
+
+    def post_optkwfid(self, trcode, rqname, next):
+        data = self.kw._get_comm_data_ex(trcode, '관심종목정보')
+
+        f = ["종목코드", "종목명", "현재가", "기준가", "전일대비", "전일대비기호", "등락율", "거래량", "거래대금", "체결량",
+             "체결강도", "전일거래량대비", "매도호가", "매수호가", "매도1차호가", "매도2차호가", "매도3차호가", "매도4차호가",
+             "매도5차호가", "매수1차호가", "매수2차호가", "매수3차호가", "매수4차호가", "매수5차호가", "상한가", "하한가",
+             "시가", "고가", "저가", "종가", "체결시간", "예상체결가", "예상체결량", "자본금", "액면가", "시가총액", "주식수",
+             "호가시간", "일자", "우선매도잔량", "우선매수잔량", "우선매도건수", "우선매수건수", "총매도잔량", "총매수잔량",
+             "총매도건수", "총매수건수", "패리티", "기어링", "손익분기", "자본지지", "ELW행사가", "전환비율", "ELW만기일",
+             "미결제약정", "미결제전일대비", "이론가", "내재변동성", "델타", "감마", "쎄타", "베가", "로"]
+
+        for d in data:
+            stock_data = OrderedDict([(k, v) for k, v in zip(f, [_.strip() for _ in d])])
+            stock_data["체결시간"] = stock_data["일자"] + stock_data["체결시간"]
+            stock_data["호가시간"] = stock_data["일자"] + stock_data["호가시간"]
+            stock_data = OrderedDict([(k, strutil.convert_data(k, v)) for k, v in stock_data.items()])
+            if "일자" in stock_data:
+                stock_data['date'] = stock_data['일자']
+                del stock_data['일자']
+            self.tr_ret_data.append(stock_data)
+
 
 class TrController(object):
-    def __init__(self):
-        self.queue = deque(maxlen=5)
+    LATEST = -1
+    D1_OLD = -5
+    D2_OLD = -100
+    D3_OLD = -700
+    D4_OLD = -1000
+
+    REQ_CNT = 0
+    REQ_D1_CNT = 0
+    REQ_D2_CNT = 0
+    REQ_D3_CNT = 0
+    REQ_D4_CNT = 0
+
+    def __init__(self, kw):
+        self.kw = kw
+        self.logger = self.kw.logger
+        self.queue_size = 2000
+        self.queue = deque(maxlen=self.queue_size)
+        self.now = datetime.now()
+        self.queue += [self.now] * self.queue_size
 
     def prevent_excessive_request(self):
         # pdb.set_trace()
+        self.REQ_CNT += 1
+        self.REQ_D1_CNT += 1
+        self.REQ_D2_CNT += 1
+        self.REQ_D3_CNT += 1
+        self.REQ_D4_CNT += 1
+
+        if self.REQ_CNT == 1:
+            with open("start_time.txt", "w") as f:
+                f.write(str(datetime.now()) + "\n")
+
+        with open("last_time.txt", "w") as f:
+            f.write(str(datetime.now()) + "\n")
+
         self.queue.append(datetime.now())
-        if len(self.queue) < 5:
-            return
 
-        duration = (self.queue[-1] - self.queue[0]).seconds
+        duration1 = (self.queue[self.LATEST] - self.queue[self.D1_OLD]).seconds
+        duration2 = (self.queue[self.LATEST] - self.queue[self.D2_OLD]).seconds
+        duration3 = (self.queue[self.LATEST] - self.queue[self.D3_OLD]).seconds
+        duration4 = (self.queue[self.LATEST] - self.queue[self.D4_OLD]).seconds
 
-        if duration < 3:
-            t_delay = 3 - duration
-            print("[TrController] Delay {}s for avoiding excessive request status".format(t_delay))
-            time.sleep(t_delay)
+        if self.REQ_CNT % 10 == 0:
+            self.logger.info("  REQ_CNT: %s" % self.REQ_CNT)
+            # self.logger.info("  REQ_D1_CNT: %s" % self.REQ_D1_CNT)
+            # self.logger.info("  REQ_D2_CNT: %s" % self.REQ_D2_CNT)
+            # self.logger.info("  REQ_D3_CNT: %s" % self.REQ_D3_CNT)
+            # self.logger.info("  REQ_D4_CNT: %s" % self.REQ_D4_CNT)
+            # self.logger.info("  duration1: %s" % duration1)
+            # self.logger.info("  duration2: %s" % duration2)
+            # self.logger.info("  duration3: %s" % duration3)
+            # self.logger.info("  duration4: %s" % duration4)
+
+        if duration1 < 2:
+            self.logger.info("duration1: %s" % duration1)
+            self.logger.info("[TrController] Delay 1sec for avoiding more then 5 req in 2sec")
+            time.sleep(1)
+            self.REQ_D1_CNT = 0
+
+        if self.REQ_D2_CNT >= 100 and duration2 < 70:
+            self.logger.info("REQ_D2_CNT: %s" % self.REQ_D2_CNT)
+            self.logger.info("duration2: %s" % duration2)
+            self.logger.info("[TrController] Delay 20sec for avoiding more then 100 req in 60sec")
+            for i in range(20)[::-1]:
+                self.logger.info(i)
+                time.sleep(1)
+            self.REQ_D1_CNT = 0
+            self.REQ_D2_CNT = 0
+
+        if self.REQ_D3_CNT >= 700 and duration3 < 600:
+            self.logger.info("REQ_D3_CNT: %s" % self.REQ_D3_CNT)
+            self.logger.info("duration3: %s" % duration3)
+            self.logger.info("[TrController] Delay 30sec for avoiding more then 700 req in 600sec")
+            for i in range(30)[::-1]:
+                self.logger.info(i)
+                time.sleep(1)
+            self.REQ_D1_CNT = 0
+            self.REQ_D2_CNT = 0
+            self.REQ_D3_CNT = 0
+
+        if self.REQ_D4_CNT >= 999:
+            print("="*50)
+            print(" ---- 1000번 요청했음 ---- 프로그램 종료합니다. ")
+            print("=" * 50)
+            exit(0)

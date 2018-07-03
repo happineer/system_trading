@@ -49,19 +49,19 @@ class TopTrader(QMainWindow, ui):
         self.tt_logger.info("Login success")
 
         ret = self.kw.stock_price_by_min('000020', tick='1', screen_no='1111',
-                                         begin_date=datetime(2018, 6, 18, 0, 0, 0),
+                                         start_date=datetime(2018, 6, 18, 0, 0, 0),
                                          end_date=datetime(2018, 6, 25, 10, 0, 0))
         pdb.set_trace()
         ret = self.kw.stock_price_by_day('000020', screen_no='1112',
-                                         begin_date=datetime(2000, 1, 1, 0, 0, 0),
+                                         start_date=datetime(2000, 1, 1, 0, 0, 0),
                                          end_date=datetime(2018, 6, 25, 0, 0, 0))
         pdb.set_trace()
         ret = self.kw.stock_price_by_week('000020', screen_no='1113',
-                                          begin_date=datetime(2000, 1, 1, 0, 0, 0),
+                                          start_date=datetime(2000, 1, 1, 0, 0, 0),
                                           end_date=datetime(2018, 6, 25, 0, 0, 0))
         pdb.set_trace()
         ret = self.kw.stock_price_by_month('000020', screen_no='1114',
-                                          begin_date=datetime(2000, 1, 1, 0, 0, 0),
+                                          start_date=datetime(2000, 1, 1, 0, 0, 0),
                                           end_date=datetime(2018, 6, 25, 0, 0, 0))
         pdb.set_trace()
 

@@ -29,6 +29,9 @@ from pymongo import MongoClient
 import pymongo
 import random
 from collections import defaultdict
+import talib as ta
+import numpy as np
+import matplotlib.pyplot as plt
 
 # load main UI object
 ui = uic.loadUiType(config_manager.MAIN_UI_PATH)[0]
@@ -63,33 +66,21 @@ class TopTrader(QMainWindow, ui):
         stock_list = [[c, self.kw.get_master_stock_name(c)] for c in kospi_code_list]
         stock_list = [(c, name) for c, name in stock_list if not any(map(lambda x: x in name, constant.FILTER_KEYWORD))]
 
-        total = len(stock_list)
-        for i, stock in enumerate(stock_list, 1):
-            code, stock_name = stock
-            print("%s/%s - %s/%s" % (i, total, code, stock_name))
-            # ret = self.kw.stock_price_by_min(code, tick='1', screen_no='3000',
-            #                                  begin_date=datetime(2018, 1, 1, 0, 0, 0),
-            #                                  end_date=datetime(2018, 6, 25, 10, 0, 0))
-            # c_time_series_min1 = self.tt_db.time_series_min1
-            # c_time_series_min1.insert(ret)
+        cursor = self.tt_db.time_series_day.find({'code': '066570'}).sort('date', -1).limit(100)
+        df = pd.DataFrame(list(cursor))
 
-            # day
-            ret = self.kw.stock_price_by_day(code, screen_no='3001',
-                                             begin_date=datetime(2018, 1, 1, 0, 0, 0),
-                                             end_date=datetime(2018, 6, 26, 10, 0, 0))
-            self.upsert_db(self.tt_db.time_series_day, ret)
+        date = df['date'][-50:]
+        high = df['고가'][-50:]
+        low = df['저가'][-50:]
+        close = df['현재가'][-50:]
+        ret = ta.ATR(high, low, close)
+        # plt.plot(date, high, color='red')
+        # plt.plot(date, low, color='blue')
+        # plt.plot(date, close, color='green')
+        plt.plot(date, ret[-50:], color='yellow')
+        plt.show()
 
-            # week
-            ret = self.kw.stock_price_by_week(code, screen_no='3002',
-                                             begin_date=datetime(2018, 1, 1, 0, 0, 0),
-                                             end_date=datetime(2018, 6, 26, 10, 0, 0))
-            self.upsert_db(self.tt_db.time_series_week, ret)
-
-            # month
-            ret = self.kw.stock_price_by_month(code, screen_no='3003',
-                                              begin_date=datetime(2018, 1, 1, 0, 0, 0),
-                                              end_date=datetime(2018, 6, 26, 10, 0, 0))
-            self.upsert_db(self.tt_db.time_series_month, ret)
+        print("end")
 
 
 # Print Exception Setting
@@ -108,3 +99,14 @@ if __name__ == "__main__":
     tt = TopTrader()
     tt.show()
     sys.exit(app.exec_())
+
+cursor = col.find({'code': '066570'}).sort('date', -1).limit(100)
+df = pd.DataFrame(list(cursor))
+
+date = df['date'][-50:]
+high = df['고가'][-50:]
+low = df['저가'][-50:]
+close = df['현재가'][-50:]
+ret = ta.ATR(high, low, close)
+plt.plot(date, ret[-50:], color='yellow')
+plt.show()
