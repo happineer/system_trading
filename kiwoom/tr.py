@@ -15,6 +15,7 @@ import ast
 class TrManager():
     def __init__(self, kw):
         self.kw = kw
+        self.logger = self.kw.logger
         self.tr_ret_data = None
         self.tr_next = 0
         self.tr_continue = None
@@ -66,7 +67,7 @@ class TrManager():
 
             return [d for d in self.tr_ret_data if begin_date <= d['date'] <= end_date]
         except Exception as e:
-            print(e)
+            self.logger.error(e)
 
         return []
 
@@ -244,16 +245,15 @@ class TrManager():
         :param record_name: string - Record name
         :param next: string - 연속조회유무 ('0': 남은 데이터 없음, '2': 남은 데이터 있음)
         """
-        print("(!)[Callback] _on_receive_tr_data")
+        self.logger.info("(!)[Callback] _on_receive_tr_data")
         try:
-            pdb.set_trace()
             post_fn = eval('self.post_' + trcode.lower())
             # post_fn = self.tr_post.fn_table[rqname]
             post_fn(trcode, rqname, next)
         except AttributeError as e:
-            print(e)
+            self.logger.error(e)
         except Exception as e:
-            print(e)
+            self.logger.error(e)
 
         self.kw.evt_loop.exit()  # release event loop
 
@@ -310,18 +310,88 @@ class TrManager():
 
 
 class TrController(object):
-    def __init__(self):
-        self.queue = deque(maxlen=5)
+    LATEST = -1
+    D1_OLD = -5
+    D2_OLD = -100
+    D3_OLD = -700
+    D4_OLD = -1000
+
+    REQ_CNT = 0
+    REQ_D1_CNT = 0
+    REQ_D2_CNT = 0
+    REQ_D3_CNT = 0
+    REQ_D4_CNT = 0
+
+    def __init__(self, kw):
+        self.kw = kw
+        self.logger = self.kw.logger
+        self.queue_size = 2000
+        self.queue = deque(maxlen=self.queue_size)
+        self.now = datetime.now()
+        self.queue += [self.now] * self.queue_size
 
     def prevent_excessive_request(self):
         # pdb.set_trace()
+        self.REQ_CNT += 1
+        self.REQ_D1_CNT += 1
+        self.REQ_D2_CNT += 1
+        self.REQ_D3_CNT += 1
+        self.REQ_D4_CNT += 1
+
+        if self.REQ_CNT == 1:
+            with open("start_time.txt", "w") as f:
+                f.write(str(datetime.now()) + "\n")
+
+        with open("last_time.txt", "w") as f:
+            f.write(str(datetime.now()) + "\n")
+
         self.queue.append(datetime.now())
-        if len(self.queue) < 5:
-            return
 
-        duration = (self.queue[-1] - self.queue[0]).seconds
+        duration1 = (self.queue[self.LATEST] - self.queue[self.D1_OLD]).seconds
+        duration2 = (self.queue[self.LATEST] - self.queue[self.D2_OLD]).seconds
+        duration3 = (self.queue[self.LATEST] - self.queue[self.D3_OLD]).seconds
+        duration4 = (self.queue[self.LATEST] - self.queue[self.D4_OLD]).seconds
 
-        if duration < 3:
-            t_delay = 3 - duration
-            print("[TrController] Delay {}s for avoiding excessive request status".format(t_delay))
-            time.sleep(t_delay)
+        if self.REQ_CNT % 10 == 0:
+            self.logger.info("  REQ_CNT: %s" % self.REQ_CNT)
+            # self.logger.info("  REQ_D1_CNT: %s" % self.REQ_D1_CNT)
+            # self.logger.info("  REQ_D2_CNT: %s" % self.REQ_D2_CNT)
+            # self.logger.info("  REQ_D3_CNT: %s" % self.REQ_D3_CNT)
+            # self.logger.info("  REQ_D4_CNT: %s" % self.REQ_D4_CNT)
+            # self.logger.info("  duration1: %s" % duration1)
+            # self.logger.info("  duration2: %s" % duration2)
+            # self.logger.info("  duration3: %s" % duration3)
+            # self.logger.info("  duration4: %s" % duration4)
+
+        if duration1 < 2:
+            self.logger.info("duration1: %s" % duration1)
+            self.logger.info("[TrController] Delay 1sec for avoiding more then 5 req in 2sec")
+            time.sleep(1)
+            self.REQ_D1_CNT = 0
+
+        if self.REQ_D2_CNT >= 100 and duration2 < 70:
+            self.logger.info("REQ_D2_CNT: %s" % self.REQ_D2_CNT)
+            self.logger.info("duration2: %s" % duration2)
+            self.logger.info("[TrController] Delay 20sec for avoiding more then 100 req in 60sec")
+            for i in range(20)[::-1]:
+                self.logger.info(i)
+                time.sleep(1)
+            self.REQ_D1_CNT = 0
+            self.REQ_D2_CNT = 0
+
+        if self.REQ_D3_CNT >= 700 and duration3 < 600:
+            self.logger.info("REQ_D3_CNT: %s" % self.REQ_D3_CNT)
+            self.logger.info("duration3: %s" % duration3)
+            self.logger.info("[TrController] Delay 30sec for avoiding more then 700 req in 600sec")
+            for i in range(30)[::-1]:
+                self.logger.info(i)
+                time.sleep(1)
+            self.REQ_D1_CNT = 0
+            self.REQ_D2_CNT = 0
+            self.REQ_D3_CNT = 0
+
+        if self.REQ_D4_CNT >= 999:
+            print("="*50)
+            print(" ---- 1000번 요청했음 ---- 프로그램 종료합니다. ")
+            print("=" * 50)
+            exit(0)
