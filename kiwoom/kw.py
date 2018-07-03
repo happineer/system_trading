@@ -14,23 +14,27 @@ from kiwoom import custom_error
 from kiwoom.tr import TrManager
 from kiwoom.tr import TrController
 from collections import deque
+import datetime as datetime_module
 from datetime import datetime
 from datetime import timedelta
 from dateutil.relativedelta import relativedelta
 from kiwoom import constant
 from util import common
+from kiwoom.logger import KWlog
+from functools import wraps
 
 
 class Kiwoom(QAxWidget):
     def __init__(self):
         super().__init__()
+        self.logger = KWlog()
         self.tr_mgr = TrManager(self)
         self.evt_loop = QEventLoop()  # lock/release event loop
         self.ret_data = None
         self.req_queue = deque(maxlen=10)
         self._create_kiwoom_instance()
         self._set_signal_slots()
-        self.tr_controller = TrController()
+        self.tr_controller = TrController(self)
 
     def _create_kiwoom_instance(self):
         self.setControl("KHOPENAPI.KHOpenAPICtrl.1")
@@ -64,12 +68,12 @@ class Kiwoom(QAxWidget):
         :param real_type: string - 실시간 타입(KOA의 실시간 목록 참조)
         :param real_data: string - 실시간 데이터 전문
         """
-        print("code:", code, type(code))
-        print("real_type:", real_type, type(real_type))
-        # print("real_data:", real_data, type(real_data))
-        print("real_data:", repr(real_data))
+        self.logger.info("code:", code, type(code))
+        self.logger.info("real_type:", real_type, type(real_type))
+        # self.logger.info("real_data:", real_data, type(real_data))
+        self.logger.info("real_data:", repr(real_data))
 
-        print("cwd:", os.getcwd())
+        self.logger.debug("cwd:", os.getcwd())
         with open(real_type + ".txt", "a") as f:
             f.write(real_data + "\n")
 
@@ -99,7 +103,7 @@ class Kiwoom(QAxWidget):
         for fid in fid_data[real_type]:
             value = self._get_comm_real_data(code, fid)
             result.append(value)
-            print("Value: " + value)
+            self.logger.info("Value: " + value)
             
         return result
         """
@@ -128,9 +132,9 @@ class Kiwoom(QAxWidget):
         :param next: int - 연속조회유무 (0: 연속조회 없음, 2: 연속 조회)
         :return:
         """
-        print("_on_receive_tr_condition")
+        self.logger.info("_on_receive_tr_condition")
         max_char_cnt = 60
-        print("[조건 검색 결과]".center(max_char_cnt, '-'))
+        self.logger.info("[조건 검색 결과]".center(max_char_cnt, '-'))
         data = [
             ("screen_no", screen_no),
             ("code_list", code_list),
@@ -141,8 +145,8 @@ class Kiwoom(QAxWidget):
         max_key_cnt = max(len(d[0]) for d in data)
         for d in data:
             key = ("* " + d[0]).rjust(max_key_cnt)
-            print("{0}: {1}".format(key, d[1]))
-        print("-" * max_char_cnt)
+            self.logger.info("{0}: {1}".format(key, d[1]))
+        self.logger.info("-" * max_char_cnt)
 
         if bool(code_list):
             self.condition_search_result = code_list.strip(';').split(";")
@@ -160,10 +164,10 @@ class Kiwoom(QAxWidget):
         :return: 없음
         """
         if ret_code != 1:
-            print("[Error] Fail to load user condition")
+            self.logger.error("Fail to load user condition")
             return False
 
-        print("Success to load user condition")
+        self.logger.info("Success to load user condition")
         condi_name_list = self.get_condition_name_list()
         self.condition = {}
         for condition_info in condi_name_list.split(";")[:-1]:
@@ -179,10 +183,10 @@ class Kiwoom(QAxWidget):
         :param fid_list: string - 데이터리스트 (데이터 구분은 ';')
         :return:
         """
-        print("(!)[Callback] _on_receive_chejan_data")
-        print("gubun(0:주문체결통보, 1:잔고통보, 3:특이신호): ", gubun)
-        print("item_cnt: ", item_cnt)
-        print("fid_list: ", fid_list)
+        self.logger.info("(!)[Callback] _on_receive_chejan_data")
+        self.logger.info("gubun(0:주문체결통보, 1:잔고통보, 3:특이신호): ", gubun)
+        self.logger.info("item_cnt: ", item_cnt)
+        self.logger.info("fid_list: ", fid_list)
 
 
     def _on_receive_msg(self, screen_no, rqname, trcode, msg):
@@ -194,11 +198,11 @@ class Kiwoom(QAxWidget):
         :param msg: str - 서버 메시지
         :return:
         """
-        print("(!)[Callback] _on_receive_msg")
-        print("screen_no: ", screen_no)
-        print("rqname: ", rqname)
-        print("trcode(TRansaction name): ", trcode)
-        print("msg: ", msg)
+        self.logger.info("(!)[Callback] _on_receive_msg")
+        self.logger.info("screen_no: ", screen_no)
+        self.logger.info("rqname: ", rqname)
+        self.logger.info("trcode(TRansaction name): ", trcode)
+        self.logger.info("msg: ", msg)
 
     def _comm_connect(self):
         """
@@ -209,6 +213,31 @@ class Kiwoom(QAxWidget):
         self.dynamicCall("CommConnect()")
         self.evt_loop.exec_()  # lock event
         return self.ret_data
+
+    def avoid_server_check_time(f):
+        """
+        키움 시스템 점검시간에 요청이 오는 경우, 잠시 delay 한다.
+        :param f:
+        :return:
+        """
+        @wraps(f)
+        def wrapper(*args, **kwargs):
+            now = datetime.now()
+            week_day = datetime.weekday(now)
+            y, m, d = now.year, now.month, now.day
+
+            if 0 <= week_day <= 6:  # Mon ~ Sat
+                if datetime(y, m, d, 4, 50) < now < datetime(y, m, d, 5, 1):
+                    args[0].logger.error("Program Exit due to Kiwoom Server Check Time. exit(100)")
+                    raise constant.KiwoomServerCheckTimeError(-100)
+            else:  # Sun
+                if datetime(y, m, d, 3, 55) < now < datetime(y, m, d, 4, 31):
+                    args[0].logger.error("Program Exit due to Kiwoom Server Check Time. (101)")
+                    raise constant.KiwoomServerCheckTimeError(-101)
+            ret = f(*args, **kwargs)
+            return ret
+
+        return wrapper
 
     # public kiwoom api
     def login(self):
@@ -337,7 +366,7 @@ class Kiwoom(QAxWidget):
         :return: condition_search_result: list - 종목코드 리스트
         """
         # 화면번호, 조건식이름, 조건명인덱스, 조회구분(0:조건검색, 1:실시간 조건검색)
-        print("Start to Condition(%s) Search !" % condi_name)
+        self.logger.info("Start to Condition(%s) Search !" % condi_name)
         ret = self.dynamicCall("SendCondition(QString, QString, int, int)",
                                screen_no, condi_name, condi_index, search_type)
         if ret == 0:
@@ -354,7 +383,7 @@ class Kiwoom(QAxWidget):
         :param condi_index: int - 조건식명 인덱스
         :return:
         """
-        print("Stop to Real Condition(%s) Search !" % condi_name)
+        self.logger.info("Stop to Real Condition(%s) Search !" % condi_name)
         self.dynamicCall("SendConditionStop(QString, QString, int)",
                          screen_no, condi_name, condi_index)
 
@@ -367,21 +396,22 @@ class Kiwoom(QAxWidget):
         self.ret_data = self.tr_mgr.opt10026('고저PER', per_condi, "1111")
         return self.ret_data
 
+    @avoid_server_check_time
     @common.type_check
-    def stock_price_by_min(self, code: str, tick: str, screen_no: str, begin_date: datetime, end_date: datetime):
+    def stock_price_by_min(self, code: str, tick: str, screen_no: str, start_date: datetime, end_date: datetime):
         """
         특정 주식종목의 분봉 데이터를 요청하는 함수. tr요청시 한번에 최대 600개까지만 return 가능.
         :param code: str - 주식코드
         :param tick: str - 분단위(1, 3, 5, 10, 15, 30, 45, 60)
         :param screen_no: str - 화면번호
-        :param begin_date: datetime - oldest date of user request
+        :param start_date: datetime - oldest date of user request
         :param end_date: datetime - newest date of user request
         :return:
         """
         self.ret_data = []
         while True:
-            # print("Do Transition opt10080")
-            curr_result = self.tr_mgr.opt10080('주식분봉', code, tick, screen_no, begin_date, end_date)
+            # self.logger.info("Do Transition opt10080")
+            curr_result = self.tr_mgr.opt10080('주식분봉', code, tick, screen_no, start_date, end_date)
             if not bool(curr_result):
                 break
             self.ret_data += curr_result
@@ -389,20 +419,21 @@ class Kiwoom(QAxWidget):
             time.sleep(0.2)  # delay
         return self.ret_data
 
+    @avoid_server_check_time
     @common.type_check
-    def stock_price_by_day(self, code: str, screen_no: str, begin_date: datetime, end_date: datetime):
+    def stock_price_by_day(self, code: str, screen_no: str, start_date: datetime, end_date: datetime):
         """
         특정 주식종목의 일봉 데이터를 요청하는 함수. tr요청시 한번에 최대 600개까지만 return 가능.
         :param code: string - 주식코드
         :param screen_no: str - 화면번호
-        :param begin_date: datetime - oldest date of user request
+        :param start_date: datetime - oldest date of user request
         :param end_date: datetime - newest date of user request
         :return:
         """
         self.ret_data = []
         while True:
-            # print("Do Transition opt10081")
-            curr_result = self.tr_mgr.opt10081('주식일봉', code, screen_no, begin_date, end_date)
+            # self.logger.info("Do Transition opt10081")
+            curr_result = self.tr_mgr.opt10081('주식일봉', code, screen_no, start_date, end_date)
             if not bool(curr_result):
                 break
             self.ret_data += curr_result
@@ -410,20 +441,21 @@ class Kiwoom(QAxWidget):
             time.sleep(0.2)  # delay
         return self.ret_data
 
+    @avoid_server_check_time
     @common.type_check
-    def stock_price_by_week(self, code: str, screen_no: str, begin_date: datetime, end_date: datetime):
+    def stock_price_by_week(self, code: str, screen_no: str, start_date: datetime, end_date: datetime):
         """
         특정 주식종목의 주봉 데이터를 요청하는 함수. tr요청시 한번에 최대 600개까지만 return 가능.
         :param code: string - 주식코드
         :param screen_no: str - 화면번호
-        :param begin_date: datetime - oldest date of user request
+        :param start_date: datetime - oldest date of user request
         :param end_date: datetime - newest date of user request
         :return:
         """
         self.ret_data = []
         while True:
-            # print("Do Transition opt10082")
-            curr_result = self.tr_mgr.opt10082('주식주봉', code, screen_no, begin_date, end_date)
+            # self.logger.info("Do Transition opt10082")
+            curr_result = self.tr_mgr.opt10082('주식주봉', code, screen_no, start_date, end_date)
             if not bool(curr_result):
                 break
             self.ret_data += curr_result
@@ -431,20 +463,21 @@ class Kiwoom(QAxWidget):
             time.sleep(0.2)  # delay
         return self.ret_data
 
+    @avoid_server_check_time
     @common.type_check
-    def stock_price_by_month(self, code: str, screen_no: str, begin_date: datetime, end_date: datetime):
+    def stock_price_by_month(self, code: str, screen_no: str, start_date: datetime, end_date: datetime):
         """
         특정 주식종목의 월봉 데이터를 요청하는 함수. tr요청시 한번에 최대 600개까지만 return 가능.
         :param code: string - 주식코드
         :param screen_no: str - 화면번호
-        :param begin_date: datetime - oldest date of user request
+        :param start_date: datetime - oldest date of user request
         :param end_date: datetime - newest date of user request
         :return:
         """
         self.ret_data = []
         while True:
-            # print("Do Transition opt10083")
-            curr_result = self.tr_mgr.opt10083('주식월봉', code, screen_no, begin_date, end_date)
+            # self.logger.info("Do Transition opt10083")
+            curr_result = self.tr_mgr.opt10083('주식월봉', code, screen_no, start_date, end_date)
             if not bool(curr_result):
                 break
             self.ret_data += curr_result
@@ -530,7 +563,7 @@ class Kiwoom(QAxWidget):
         :param reg_type: string - 실시간등록타입(0: 첫 등록, 1: 추가 등록)
                                   처음등록할때에는 꼭 real_type이 0이어야 하고, 이후부터 1로 설정가능.
         """
-        print("dynamic Call - SetRealReg")
+        self.logger.info("dynamic Call - SetRealReg")
         ret = self.dynamicCall("SetRealReg(QString, QString, QString, QString)", screen_no, codes, fids, reg_type)
         return ret
 
@@ -622,6 +655,8 @@ class Kiwoom(QAxWidget):
         """
         self.tr_controller.prevent_excessive_request()
         ret_code = self.dynamicCall("CommRqData(QString, QString, int, QString)", rqname, trcode, int(next), screen_no)
+        time.sleep(0.2)  # avoid over request
+
         # when receive data, invoke self._on_receive_tr_data
         self.evt_loop.exec_()  # lock event loop
         return ret_code
