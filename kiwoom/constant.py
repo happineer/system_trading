@@ -32,6 +32,18 @@ class KiwoomProcessingError(Exception):
     def __str__(self):
         return self.msg
 
+
+class KiwoomServerCheckTimeError(Exception):
+    """
+    Kiwoom open api 서버 점검 시간에 kiwoom module을 사용한 경우
+    """
+    def __init__(self, error_code):
+        self.error_code = error_code
+        self.msg = "[KiwoomServerCheckTimeError] ErrorCode: %s" % error_code
+
+    def __str__(self):
+        return self.msg
+
 FILTER_KEYWORD = ["KODEX", "TIGER", "KINDEX", "ETN", "KOSEF", "ARIRANG", "KBSTAR",
                 "선물", "TREX", "SMART", "FOCUS", "HANARO", "ATM"]
 
@@ -331,7 +343,13 @@ class RealTypeFid(object):
 
 # 업종코드
 class StockCategoryCode(object):
-    pass
+    KOSPI = '001'
+    대형주 = '002'
+    중형주 = '003'
+    소형주 = '004'
+    KOSDAQ = '101'
+    KOSPI200 = '201'
+    KOSTAR = '302'
 
 
 # 주가변동
