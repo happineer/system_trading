@@ -41,11 +41,15 @@ class TopTrader(QMainWindow, ui):
     def __init__(self):
         super().__init__()
         # self.setupUi(self)  # load app screen
-        self.logger = TTlog()
+        duration = sys.argv[1]
+        self.logger = TTlog(logger_name="TT"+duration)
         self.mongo = MongoClient()
         self.tt_db = self.mongo.TopTrader
         self.slack = Slacker(config_manager.get_slack_token())
-        self.end_date = datetime(2018, 7, 4, 16, 0, 0)
+        with open("collect_stock_data_last_date.txt") as f:
+            date_str = f.read().strip().split(" ")
+
+        self.end_date = datetime(*date_str)
         self.kw = Kiwoom()
         self.login()
         self.get_screen_no = {
@@ -59,7 +63,6 @@ class TopTrader(QMainWindow, ui):
             "month": "3007",
             "year": "3008"
         }
-        duration = sys.argv[1]
         if duration.startswith("min"):
             self.collect_n_save_data_min(duration)
         else:

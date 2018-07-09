@@ -35,6 +35,7 @@ class Kiwoom(QAxWidget):
         self._create_kiwoom_instance()
         self._set_signal_slots()
         self.tr_controller = TrController(self)
+        self.notify_fn = {}
 
     def _create_kiwoom_instance(self):
         self.setControl("KHOPENAPI.KHOpenAPICtrl.1")
@@ -64,16 +65,14 @@ class Kiwoom(QAxWidget):
         Kiwoom Receive Realtime Data Callback, 실시간데이터를 받은 시점을 알려준다.
         setRealReg() 메서드로 등록한 실시간 데이터도 이 이벤트 메서드에 전달됩니다.
         getCommRealData() 메서드를 이용해서 실시간 데이터를 얻을 수 있습니다.
-        :param code: string - 종목코드
-        :param real_type: string - 실시간 타입(KOA의 실시간 목록 참조)
-        :param real_data: string - 실시간 데이터 전문
+        :param code str: 종목코드
+        :param real_type str: 실시간 타입(KOA의 실시간 목록 참조)
+        :param real_data str: 실시간 데이터 전문
         """
-        self.logger.info("code:", code, type(code))
-        self.logger.info("real_type:", real_type, type(real_type))
-        # self.logger.info("real_data:", real_data, type(real_data))
-        self.logger.info("real_data:", repr(real_data))
+        self.logger.info("code: {}".format(code))
+        self.logger.info("real_type: {}".format(real_type))
+        self.logger.info("real_data: {}".format(real_data))
 
-        self.logger.debug("cwd:", os.getcwd())
         with open(real_type + ".txt", "a") as f:
             f.write(real_data + "\n")
 
@@ -108,101 +107,150 @@ class Kiwoom(QAxWidget):
         return result
         """
 
-    def _on_receive_real_condition(self, code, update_type, condi_name, condi_index):
+    def _on_receive_real_condition(self, code, event_type, condi_name, condi_index):
         """
         Kiwoom Receive Realtime Condition Result(stock list) Callback, 조건검색 실시간 편입, 이탈 종목을 받을 시점을 알려준다.
         condi_name(조건식)으로 부터 검출된 종목이 실시간으로 들어옴.
         update_type으로 편입된 종목인지, 이탈된 종목인지 구분한다.
         * 조건식 검증할때, 어떤 종목이 검출된 시간을 본 함수내에서 구현해야 함
-        :param code: string - 종목코드
-        :param update_type: string - 편입("I"), 이탈("D")
-        :param condi_name: string - 조건식명
-        :param condi_index: string - 조건식명 인덱스
+        :param code str: 종목코드
+        :param event_type str: 편입("I"), 이탈("D")
+        :param condi_name str: 조건식명
+        :param condi_index str: 조건식명 인덱스
         :return: 없음
         """
-        pass
+        try:
+            self.logger.info("_on_receive_real_condition")
+            max_char_cnt = 60
+            self.logger.info("[실시간 조건 검색 결과]".center(max_char_cnt, '-'))
+            data = [
+                ("code", code),
+                ("event_type", event_type),
+                ("condi_name", condi_name),
+                ("condi_index", condi_index)
+            ]
+            max_key_cnt = max(len(d[0]) for d in data) + 3
+            for d in data:
+                key = ("* " + d[0]).rjust(max_key_cnt)
+                self.logger.info("{0}: {1}".format(key, d[1]))
+            self.logger.info("-" * max_char_cnt)
+
+            data["kw_event"] = "OnReceiveRealCondition"
+            if '_on_receive_real_condition' in self.notify_fn:
+                self.notify_fn['_on_receive_real_condition'](dict(data))
+
+        except Exception as e:
+            self.logger.error(e)
+        finally:
+            self.real_condition_search_result = []
 
     def _on_receive_tr_condition(self, screen_no, code_list, condi_name, condi_index, next):
         """
         Kiwoom Receive TR Condition Callback, 조건검색 조회응답으로 종목리스트를 구분자(';')로 붙어서 받는 시점.
-        :param screen_no: 화면번호 ---> 종목코드라고 설명되어 있음???
-        :param code_list: string - 종목리스트 (; 으로 구분)
-        :param condi_name: string - 조건식명
-        :param condi_index: int - 조건식명 index
-        :param next: int - 연속조회유무 (0: 연속조회 없음, 2: 연속 조회)
+        :param screen_no str: 화면번호 ---> 종목코드라고 설명되어 있음???
+        :param code_list str: 종목리스트 (; 으로 구분)
+        :param condi_name str: 조건식명
+        :param condi_index int: 조건식명 index
+        :param next int: 연속조회유무 (0: 연속조회 없음, 2: 연속 조회)
         :return:
         """
-        self.logger.info("_on_receive_tr_condition")
-        max_char_cnt = 60
-        self.logger.info("[조건 검색 결과]".center(max_char_cnt, '-'))
-        data = [
-            ("screen_no", screen_no),
-            ("code_list", code_list),
-            ("condi_name", condi_name),
-            ("condi_index", condi_index),
-            ("next", next)
-        ]
-        max_key_cnt = max(len(d[0]) for d in data)
-        for d in data:
-            key = ("* " + d[0]).rjust(max_key_cnt)
-            self.logger.info("{0}: {1}".format(key, d[1]))
-        self.logger.info("-" * max_char_cnt)
+        try:
+            self.logger.info("_on_receive_tr_condition")
+            max_char_cnt = 60
+            self.logger.info("[조건 검색 결과]".center(max_char_cnt, '-'))
+            data = [
+                ("screen_no", screen_no),
+                ("code_list", code_list),
+                ("condi_name", condi_name),
+                ("condi_index", condi_index),
+                ("next", next)
+            ]
+            max_key_cnt = max(len(d[0]) for d in data)
+            for d in data:
+                key = ("* " + d[0]).rjust(max_key_cnt)
+                self.logger.info("{0}: {1}".format(key, d[1]))
+            self.logger.info("-" * max_char_cnt)
 
-        if bool(code_list):
-            self.condition_search_result = code_list.strip(';').split(";")
-        else:
+            data["kw_event"] = "OnReceiveTrCondition"
+            self.notify_fn[screen_no](dict(data))
+
+            self.evt_loop.exit()  # lock event
+        except Exception as e:
+            self.logger.error(e)
+            self.logger.error("screen_no: {}".format(screen_no))
+            self.logger.error("code_list:".format(code_list))
+            self.logger.error("condi_name:".format(condi_name))
+            self.logger.error("condi_index:".format(condi_index))
+            self.logger.error("next:".format(next))
+        finally:
             self.condition_search_result = []
-
-        self.evt_loop.exit()  # lock event
+            self.evt_loop.exit()  # lock event
 
     def _on_receive_condition_ver(self, ret_code, condition_text):
         """
         Kiwoom Receive Condition Data Callback
         로컬에 사용자 조건식 저장 성공 여부를 확인하는 시점
-        :param ret_code: int - 사용자 조건식 저장 성공여부 (1:성공, 나머지:실패)
-        :param condition_text: string - 사용자 조건식 문자열(100^조건명1;101^조건명2; ...)
+        :param ret_code int: 사용자 조건식 저장 성공여부 (1:성공, 나머지:실패)
+        :param condition_text str: 사용자 조건식 문자열(100^조건명1;101^조건명2; ...)
         :return: 없음
         """
-        if ret_code != 1:
-            self.logger.error("Fail to load user condition")
-            return False
+        try:
+            if ret_code != 1:
+                self.logger.error("Fail to load user condition")
+                return False
 
-        self.logger.info("Success to load user condition")
-        condi_name_list = self.get_condition_name_list()
-        self.condition = {}
-        for condition_info in condi_name_list.split(";")[:-1]:
-            condi_index, condi_name = condition_info.split("^")
-            self.condition[condi_name] = condi_index
-        self.evt_loop.exit()
+            self.logger.info("Success to load user condition")
+            condi_name_list = self.get_condition_name_list()
+            self.condition = {}
+            for condition_info in condi_name_list.split(";")[:-1]:
+                condi_index, condi_name = condition_info.split("^")
+                self.condition[condi_name] = condi_index
+            self.evt_loop.exit()
+        except Exception as e:
+            self.logger.error("_on_receive_condition_ver")
+        finally:
+            self.evt_loop.exit()
 
     def _on_receive_chejan_data(self, gubun, item_cnt, fid_list):
         """
         Kiwoom Receive Chejan Data Callback, 체결데이터를 받은 시점을 알려준다.
-        :param gubun: string - 체결 구분 (0:주문체결통보, 1:잔고통보, 3:특이신호)
-        :param item_cnt: int - 아이템 갯수
-        :param fid_list: string - 데이터리스트 (데이터 구분은 ';')
+        :param gubun str: 체결 구분 (0:주문체결통보, 1:잔고통보, 3:특이신호)
+        :param item_cnt int: 아이템 갯수
+        :param fid_list str: 데이터리스트 (데이터 구분은 ';')
         :return:
         """
-        self.logger.info("(!)[Callback] _on_receive_chejan_data")
-        self.logger.info("gubun(0:주문체결통보, 1:잔고통보, 3:특이신호): ", gubun)
-        self.logger.info("item_cnt: ", item_cnt)
-        self.logger.info("fid_list: ", fid_list)
-
+        try:
+            self.logger.info("(!)[Callback] _on_receive_chejan_data")
+            self.logger.info("gubun(0:주문체결통보, 1:잔고통보, 3:특이신호): {}".format(gubun))
+            self.logger.info("item_cnt: {}".format(item_cnt))
+            self.logger.info("fid_list: {}".format(fid_list))
+        except Exception as e:
+            self.logger.error("[Error] {}".format(e))
 
     def _on_receive_msg(self, screen_no, rqname, trcode, msg):
         """
         Kiwoom Receive Msg Callback, 서버통신 후 메시지를 받은 시점을 알려준다.
-        :param screen_no: str - 화면번호
-        :param rqname: str - TR 요청명(commRqData() 메소드 호출시 사용된 requestName)
-        :param trcode: str - TRansaction name
-        :param msg: str - 서버 메시지
+
+        오류가 발생하면, msg = '알수 없는 오류로 인해 서비스가 원할하지 않습니다.' 값이 들어가고,
+        screen_no, rqname, trcode 모두 '' 이 입력된다.
+
+        :param screen_no str: 화면번호
+        :param rqname str: TR 요청명(commRqData() 메소드 호출시 사용된 requestName)
+        :param trcode str: TRansaction name
+        :param msg str: 서버 메시지
         :return:
         """
-        self.logger.info("(!)[Callback] _on_receive_msg")
-        self.logger.info("screen_no: ", screen_no)
-        self.logger.info("rqname: ", rqname)
-        self.logger.info("trcode(TRansaction name): ", trcode)
-        self.logger.info("msg: ", msg)
+        try:
+            self.logger.info("(!)[Callback] _on_receive_msg")
+            self.logger.info("screen_no: {}".format(screen_no))
+            self.logger.info("rqname: ".format(rqname))
+            self.logger.info("trcode(TRansaction name): ".format(trcode))
+            self.logger.info("msg: ".format(msg))
+        except TypeError as e:
+            self.logger.error("screen_no: " + str(type(screen_no)))
+            self.logger.error("rqname: " + str(type(rqname)))
+            self.logger.error("trcode: " + str(type(trcode)))
+            self.logger.error("msg: " + msg)
 
     def _comm_connect(self):
         """
@@ -227,11 +275,11 @@ class Kiwoom(QAxWidget):
             y, m, d = now.year, now.month, now.day
 
             if 0 <= week_day <= 6:  # Mon ~ Sat
-                if datetime(y, m, d, 4, 50) < now < datetime(y, m, d, 5, 1):
+                if datetime(y, m, d, 4, 45) < now < datetime(y, m, d, 5, 1):
                     args[0].logger.error("Program Exit due to Kiwoom Server Check Time. exit(100)")
                     raise constant.KiwoomServerCheckTimeError(-100)
             else:  # Sun
-                if datetime(y, m, d, 3, 55) < now < datetime(y, m, d, 4, 31):
+                if datetime(y, m, d, 3, 50) < now < datetime(y, m, d, 4, 31):
                     args[0].logger.error("Program Exit due to Kiwoom Server Check Time. (101)")
                     raise constant.KiwoomServerCheckTimeError(-101)
             ret = f(*args, **kwargs)
@@ -243,14 +291,14 @@ class Kiwoom(QAxWidget):
     def login(self):
         """
         키움 서버에 로그인을 시도합니다.
-        :return: int - 0:로그인 성공, 음수:로그인 실패
+        :return int: 0:로그인 성공, 음수:로그인 실패
         """
         return self._comm_connect()
 
     def get_connect_state(self):
         """
         현재 로그인 상태를 알려줍니다.
-        :return: Int - 리턴값 1:연결, 0:연결안됨
+        :return int: 리턴값 1:연결, 0:연결안됨
         """
         return self.dynamicCall("GetConnectState()")
 
@@ -264,8 +312,8 @@ class Kiwoom(QAxWidget):
     def get_master_stock_name(self, code):
         """
         종목코드에 해당하는 종목명을 return 한다.
-        :param code: string - 종목코드
-        :return: code_name: string - 종목명
+        :param code str: 종목코드
+        :return: code_name str: 종목명
         """
         code_name = self.dynamicCall("GetMasterCodeName(QString)", code)
         return code_name
@@ -273,8 +321,8 @@ class Kiwoom(QAxWidget):
     def get_theme_group_list(self, n_type):
         """
         키움증권에서 제공하는 주식테마 정보를 알려준다.
-        :param n_type: int - 정렬순서 (0:코드순, 1:테마순)
-        :return: theme_info_list: list - [[테마코드1, 테마명1], [theme_code2, theme_name2], ... [theme_codeN, theme_nameN]]
+        :param n_type int: 정렬순서 (0:코드순, 1:테마순)
+        :return: theme_info_list list: [[테마코드1, 테마명1], [theme_code2, theme_name2], ... [theme_codeN, theme_nameN]]
         # 테마코드1|테마명1;테마코드2|테마명2
         # ex) 100|태양광_폴리실리콘;152|합성섬유
         """
@@ -285,8 +333,8 @@ class Kiwoom(QAxWidget):
     def get_theme_group_code_list(self, theme_code):
         """
         특정 테마코드에 해당하는 종목리스트를 반환한다.
-        :param theme_code: string 테마코드
-        :return: code_list: list - [str, str, ..., str] stock_code 리스트
+        :param theme_code str: 테마코드
+        :return: code_list list: [str, str, ..., str] stock_code 리스트
         # 종목코드1;종목코드2
         # A000660;A005930
         """
@@ -297,8 +345,8 @@ class Kiwoom(QAxWidget):
     def get_code_list_by_market(self, market):
         """
         kospi, kosdaq 시장별 주식종목 리스트를 반환한다.
-        :param market: str  0:kospi, 10:kosdaq
-        :return: code_list: list - [code_name1:str, code_name2:str, ..., code_nameN:str]
+        :param market str: 0:kospi, 10:kosdaq
+        :return: code_list list: [code_name1:str, code_name2:str, ..., code_nameN:str]
         """
         if isinstance(market, int):
             market = str(market)
@@ -309,7 +357,7 @@ class Kiwoom(QAxWidget):
     def get_branch_code_name(self):
         """
         회원사 코드와 이름을 반환합니다.
-        :return: str - 회원사코드|회원사명;회원사코드|회원사명
+        :return str: 회원사코드|회원사명;회원사코드|회원사명
         """
         ret = self.dynamicCall("GetBranchCodeName()")
         return dict([tuple(d.split("|")) for d in ret.split(";")])
@@ -319,7 +367,7 @@ class Kiwoom(QAxWidget):
         서버에 저장된 사용자 조건식을 조회해서 임시로 파일에 저장.
         사용자 조건검색 목록을 서버에 요청합니다.
         조건검색 목록을 모두 수신하면 OnReceiveConditionVer()이벤트 함수가 호출됩니다.
-        :return: 1:성공, others:실패
+        :return int: 1:성공, others:실패
         """
         ret = self.dynamicCall("GetConditionLoad()")
         if ret != 1:
@@ -330,7 +378,7 @@ class Kiwoom(QAxWidget):
     def get_condition_name_list(self):
         """
         조건검색 조건명 리스트를 받아온다.
-        :return: str - 조건명 리스트(인덱스^조건명)
+        :return str: 조건명 리스트(인덱스^조건명)
         """
         ret = self.dynamicCall("GetConditionNameList()")
         return ret
@@ -338,11 +386,11 @@ class Kiwoom(QAxWidget):
     def get_stock_infos(self, code_list, screen_no, type_flag, next):
         """
         특정주식중복조회
-        :param code_list: str - 종목리스트 (ex. code1;code2;...)
-        :param screen_no: str - 화면번호
-        :param type_flag: int - 조회구분 (0:주식관심종목정보, 3:선물옵션관심종목정보)
-        :param next: int - 연속조회요청
-        :return: list - 주식정보를 list형태로 반환
+        :param code_list str: 종목리스트 (ex. code1;code2;...)
+        :param screen_no str: 화면번호
+        :param type_flag int: 조회구분 (0:주식관심종목정보, 3:선물옵션관심종목정보)
+        :param next int: 연속조회요청
+        :return list: 주식정보를 list형태로 반환
         """
         ret = self.tr_mgr.optkwfid('주식중복조회', code_list, screen_no, type_flag, next)
 
@@ -365,15 +413,18 @@ class Kiwoom(QAxWidget):
         :param search_type: int - 조회구분(0:조건검색, 1:실시간 조건검색)
         :return: condition_search_result: list - 종목코드 리스트
         """
-        # 화면번호, 조건식이름, 조건명인덱스, 조회구분(0:조건검색, 1:실시간 조건검색)
-        self.logger.info("Start to Condition(%s) Search !" % condi_name)
-        ret = self.dynamicCall("SendCondition(QString, QString, int, int)",
-                               screen_no, condi_name, condi_index, search_type)
-        if ret == 0:
-            raise constant.KiwoomProcessingError("sendCondition(): 조건검색 요청 실패")
-        self.evt_loop.exec_()  # lock event
+        try:
+            # 화면번호, 조건식이름, 조건명인덱스, 조회구분(0:조건검색, 1:실시간 조건검색)
+            self.logger.info("Start to Condition(%s) Search !" % condi_name)
+            ret = self.dynamicCall("SendCondition(QString, QString, int, int)",
+                                   screen_no, condi_name, condi_index, search_type)
+            if ret == 0:
+                raise constant.KiwoomProcessingError("sendCondition(): 조건검색 요청 실패")
+            self.evt_loop.exec_()  # lock event
 
-        return self.condition_search_result
+            return self.condition_search_result
+        except Exception as e:
+            self.logger.error(e)
 
     def send_condition_stop(self, screen_no, condi_name, condi_index):
         """
