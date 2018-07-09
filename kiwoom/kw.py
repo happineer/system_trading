@@ -134,10 +134,10 @@ class Kiwoom(QAxWidget):
                 key = ("* " + d[0]).rjust(max_key_cnt)
                 self.logger.info("{0}: {1}".format(key, d[1]))
             self.logger.info("-" * max_char_cnt)
-
+            data = dict(data)
             data["kw_event"] = "OnReceiveRealCondition"
             if '_on_receive_real_condition' in self.notify_fn:
-                self.notify_fn['_on_receive_real_condition'](dict(data))
+                self.notify_fn['_on_receive_real_condition'](data)
 
         except Exception as e:
             self.logger.error(e)
@@ -170,9 +170,11 @@ class Kiwoom(QAxWidget):
                 key = ("* " + d[0]).rjust(max_key_cnt)
                 self.logger.info("{0}: {1}".format(key, d[1]))
             self.logger.info("-" * max_char_cnt)
-
+            data = dict(data)
             data["kw_event"] = "OnReceiveTrCondition"
-            self.notify_fn[screen_no](dict(data))
+            if screen_no in self.notify_fn:
+                self.notify_fn[screen_no](data)
+            self.condition_search_result = code_list.strip(";").split(";")
 
             self.evt_loop.exit()  # lock event
         except Exception as e:
@@ -183,7 +185,7 @@ class Kiwoom(QAxWidget):
             self.logger.error("condi_index:".format(condi_index))
             self.logger.error("next:".format(next))
         finally:
-            self.condition_search_result = []
+
             self.evt_loop.exit()  # lock event
 
     def _on_receive_condition_ver(self, ret_code, condition_text):

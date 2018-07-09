@@ -42,12 +42,11 @@ class TopTrader(QMainWindow, ui):
     def __init__(self):
         super().__init__()
         # self.setupUi(self)  # load app screen
-        self.logger = TTlog(logger_name="TTRealCondi")
+        self.logger = TTlog(logger_name="RealCondi")
         self.mongo = MongoClient()
         self.tt_db = self.mongo.TopTrader
         self.slack = Slacker(config_manager.get_slack_token())
-        self.end_date = datetime(2018, 7, 6, 16, 0, 0)
-        self.kw = Kiwoom(kw_id="RealCondi")
+        self.kw = Kiwoom()
         self.login()
 
         # core function
@@ -96,11 +95,11 @@ class TopTrader(QMainWindow, ui):
 
     def real_condi_search(self):
         self.kw.get_condition_load()
-        self.kw.notify_fn['4000'] = self.real_condi_4000
-        self.kw.notify_fn['4001'] = self.real_condi_4001
-        self.kw.notify_fn['4002'] = self.real_condi_4002
-        self.kw.notify_fn['4003'] = self.real_condi_4003
-        self.kw.notify_fn['4004'] = self.real_condi_4004
+        # self.kw.notify_fn['4000'] = self.real_condi_4000
+        # self.kw.notify_fn['4001'] = self.real_condi_4001
+        # self.kw.notify_fn['4002'] = self.real_condi_4002
+        # self.kw.notify_fn['4003'] = self.real_condi_4003
+        # self.kw.notify_fn['4004'] = self.real_condi_4004
         self.kw.notify_fn['_on_receive_real_condition'] = self.result_real_condi_search
 
         ret = self.kw.send_condition('4000', '추천조건식02', 0, 1)
