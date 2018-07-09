@@ -311,87 +311,33 @@ class TrManager():
 
 class TrController(object):
     LATEST = -1
-    D1_OLD = -5
-    D2_OLD = -100
-    D3_OLD = -700
-    D4_OLD = -1000
-
     REQ_CNT = 0
-    REQ_D1_CNT = 0
-    REQ_D2_CNT = 0
-    REQ_D3_CNT = 0
-    REQ_D4_CNT = 0
 
     def __init__(self, kw):
         self.kw = kw
         self.logger = self.kw.logger
-        self.queue_size = 2000
+        self.queue_size = 1000
         self.queue = deque(maxlen=self.queue_size)
         self.now = datetime.now()
+        self.req_limit_setting = [(5, 2, 1), (100, 70, 20), (200, 150, 20), (700, 600, 30)]  # count, time, delay
         self.queue += [self.now] * self.queue_size
 
     def prevent_excessive_request(self):
-        # pdb.set_trace()
         self.REQ_CNT += 1
-        self.REQ_D1_CNT += 1
-        self.REQ_D2_CNT += 1
-        self.REQ_D3_CNT += 1
-        self.REQ_D4_CNT += 1
-
-        if self.REQ_CNT == 1:
-            with open("start_time.txt", "w") as f:
-                f.write(str(datetime.now()) + "\n")
-
-        with open("last_time.txt", "w") as f:
-            f.write(str(datetime.now()) + "\n")
-
         self.queue.append(datetime.now())
-
-        duration1 = (self.queue[self.LATEST] - self.queue[self.D1_OLD]).seconds
-        duration2 = (self.queue[self.LATEST] - self.queue[self.D2_OLD]).seconds
-        duration3 = (self.queue[self.LATEST] - self.queue[self.D3_OLD]).seconds
-        duration4 = (self.queue[self.LATEST] - self.queue[self.D4_OLD]).seconds
-
-        if self.REQ_CNT % 10 == 0:
-            self.logger.info("  REQ_CNT: %s" % self.REQ_CNT)
-            # self.logger.info("  REQ_D1_CNT: %s" % self.REQ_D1_CNT)
-            # self.logger.info("  REQ_D2_CNT: %s" % self.REQ_D2_CNT)
-            # self.logger.info("  REQ_D3_CNT: %s" % self.REQ_D3_CNT)
-            # self.logger.info("  REQ_D4_CNT: %s" % self.REQ_D4_CNT)
-            # self.logger.info("  duration1: %s" % duration1)
-            # self.logger.info("  duration2: %s" % duration2)
-            # self.logger.info("  duration3: %s" % duration3)
-            # self.logger.info("  duration4: %s" % duration4)
-
-        if duration1 < 2:
-            self.logger.info("duration1: %s" % duration1)
-            self.logger.info("[TrController] Delay 1sec for avoiding more then 5 req in 2sec")
-            time.sleep(1)
-            self.REQ_D1_CNT = 0
-
-        if self.REQ_D2_CNT >= 100 and duration2 < 70:
-            self.logger.info("REQ_D2_CNT: %s" % self.REQ_D2_CNT)
-            self.logger.info("duration2: %s" % duration2)
-            self.logger.info("[TrController] Delay 20sec for avoiding more then 100 req in 60sec")
-            for i in range(20)[::-1]:
-                self.logger.info(i)
-                time.sleep(1)
-            self.REQ_D1_CNT = 0
-            self.REQ_D2_CNT = 0
-
-        if self.REQ_D3_CNT >= 700 and duration3 < 600:
-            self.logger.info("REQ_D3_CNT: %s" % self.REQ_D3_CNT)
-            self.logger.info("duration3: %s" % duration3)
-            self.logger.info("[TrController] Delay 30sec for avoiding more then 700 req in 600sec")
-            for i in range(30)[::-1]:
-                self.logger.info(i)
-                time.sleep(1)
-            self.REQ_D1_CNT = 0
-            self.REQ_D2_CNT = 0
-            self.REQ_D3_CNT = 0
-
-        if self.REQ_D4_CNT >= 999:
-            print("="*50)
+        if self.REQ_CNT >= 999:
+            print("=" * 50)
             print(" ---- 1000번 요청했음 ---- 프로그램 종료합니다. ")
             print("=" * 50)
             exit(0)
+
+        tmp = 0
+        print("Req Count: %s" % self.REQ_CNT)
+        for cnt, dur_cfg, delay in self.req_limit_setting:
+            if self.REQ_CNT < cnt:
+                continue
+            spend = (self.queue[self.LATEST] - self.queue[-cnt]).seconds
+            if (tmp+spend) < dur_cfg:
+                print("[Delay] %s sec" % delay)
+                time.sleep(delay)
+                tmp += spend
