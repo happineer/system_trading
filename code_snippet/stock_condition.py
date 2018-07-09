@@ -50,21 +50,13 @@ class TopTrader(QMainWindow, ui):
 
     def test(self):
         ret = self.kw.get_condition_load()
-        #pdb.set_trace()
 
         # send_condition를 호출하기 전에 get_condition_load를 먼저 꼭 호출해주어야 한다
         ret = self.kw.send_condition('4000', '스켈핑', 4, 0)
-        pdb.set_trace()
         ret = self.kw.send_condition('4000', '추천조건식02', 0, 0)
-        pdb.set_trace()
         ret = self.kw.send_condition('4000', '급등/상승_추세조건', 1, 0)
-        pdb.set_trace()
         ret = self.kw.send_condition('4000', '추천조건식01', 2, 0)
-        pdb.set_trace()
         ret = self.kw.send_condition('4000', 'Envolop횡단', 3, 0)
-        pdb.set_trace()
-
-
 
 
 # Print Exception Setting

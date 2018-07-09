@@ -44,8 +44,10 @@ class KiwoomServerCheckTimeError(Exception):
     def __str__(self):
         return self.msg
 
+
 FILTER_KEYWORD = ["KODEX", "TIGER", "KINDEX", "ETN", "KOSEF", "ARIRANG", "KBSTAR",
-                "선물", "TREX", "SMART", "FOCUS", "HANARO", "ATM"]
+                  "선물", "TREX", "SMART", "FOCUS", "HANARO", "ATM"]
+
 
 class ReturnCode(object):
     """ 키움 OpenApi+ 함수들이 반환하는 값 """
