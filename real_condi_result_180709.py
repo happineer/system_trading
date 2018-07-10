@@ -38,6 +38,7 @@ from kiwoom.constant import KiwoomServerCheckTimeError
 import multiprocessing
 
 from matplotlib import pyplot as plt
+from matplotlib import font_manager, rc
 
 # load main UI object
 ui = uic.loadUiType(config_manager.MAIN_UI_PATH)[0]
@@ -53,7 +54,7 @@ class TopTrader(QMainWindow, ui):
         self.tt_db = self.mongo.TopTrader
         self.slack = Slacker(config_manager.get_slack_token())
         self.end_date = datetime(2018, 7, 6, 16, 0, 0)
-        self.kw = Kiwoom(kw_id="RealCondi")
+        self.kw = Kiwoom()
         self.login()
         self.get_screen_no = {
             "min1": "3000",
@@ -70,14 +71,13 @@ class TopTrader(QMainWindow, ui):
         # core function
         # self.real_condi_search_result()
         self.kospi, self.kosdaq = [dict(stock_info) for stock_info in self.get_stock_list()]
-        from matplotlib import font_manager, rc
-        font_name = font_manager.FontProperties(fname="c:/Windows/Fonts/malgun.ttf").get_name()
+        font_name = font_manager.FontProperties(fname="c:/Windows/Fonts/NanumGothic.ttf").get_name()
         rc('font', family=font_name)
 
         self.analysis('추천조건식02')
         self.analysis('급등/상승 추세조건')
         self.analysis('추천조건식01')
-        self.analysis('Envolp횡단')
+        self.analysis('Envelop횡단')
         self.analysis('스켈핑')
 
     def analysis(self, condi_name):
@@ -89,14 +89,18 @@ class TopTrader(QMainWindow, ui):
         code_list = list(set([data['code'] for data in cur]))
 
         for code in code_list:
+            fig = plt.figure()
+            plt.style.use('seaborn-whitegrid')
+
+            stock_name = self.kospi[code]
             cur = self.tt_db.real_condi_search.find({'market': 'kospi',
                                                      'condi_name': condi_name,
                                                      'event': 'I',
                                                      'code': code})
-            all_stocks = list(set([datetime(2018, 7, 9, data['date'].hour, data['date'].minute) for data in cur]))
+            all_stocks = list(set([datetime(2018, 7, 10, data['date'].hour, data['date'].minute) for data in cur]))
 
             cur = self.tt_db.time_series_min1.find({'code': code,
-                                                    'date': {'$gt': datetime(2018, 7, 8, 16, 0, 0)}})\
+                                                    'date': {'$gt': datetime(2018, 7, 9, 16, 0, 0)}})\
                 .sort('date', pymongo.ASCENDING)
 
             time_series = [(data['date'], data['시가']) for data in cur]
@@ -106,13 +110,14 @@ class TopTrader(QMainWindow, ui):
             plt.plot(x1, y1)
 
             x2 = all_stocks
-            y2 = [ord_dict[d] for d in all_stocks]
-            plt.plot(x2, y2, 'o', color='red')
+            y2 = [ord_dict.get(d) for d in all_stocks]
+            plt.plot(x2, y2, 'v', color='red')
 
-            plt.ylabel('Condi: {}, Stock: {}'.format(condi_name, self.kospi[code]))
+            plt.ylabel('Condi: {}, Stock: {}'.format(condi_name, stock_name))
             plt.grid()
-            plt.show()
-        print('end')
+            # plt.show()
+            fig.savefig("{}_{}.png".format(condi_name.replace("/", "-"), stock_name))
+        print('{} - Analysis End'.format(condi_name))
 
     def real_condi_search_result(self):
         kospi, kosdaq = [dict(stock_info) for stock_info in self.get_stock_list()]

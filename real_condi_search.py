@@ -53,8 +53,9 @@ class TopTrader(QMainWindow, ui):
         self.real_condi_search()
 
     def result_real_condi_search(self, data):
+        self.logger.info("---- [TopTrader] result_real_condi_search ----")
         data['date'] = datetime.now()
-        del data["OnReceiveRealCondition"]
+        del data["kw_event"]
         self.tt_db.real_condi_search.insert(data)
         print("실시간 조건 검색 저장 완료!")
 
