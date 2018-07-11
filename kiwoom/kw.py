@@ -538,6 +538,56 @@ class Kiwoom(QAxWidget):
             time.sleep(0.2)  # delay
         return self.ret_data
 
+    def 계좌수익률요청(self, rqname, account_no, screen_no):
+        """
+        계좌수익률요청 TR
+        :param rqname: 요청명
+        :param account_no: 계좌번호
+        :param screen_no: 화면번호
+        :return:
+        """
+        ret = self.tr_mgr.opt10085(rqname, account_no, screen_no)
+        return ret
+
+    def 당일실현손익상세요청(self, rqname, account_no, account_pw, code, screen_no):
+        """
+        당일실현손익상세요청 TR
+        :param rqname str: 요청명
+        :param account_no str: 계좌번호
+        :param account_pw str: 계좌번호 비밀번호
+        :param code str: 종목코드
+        :param screen_no str: 화면번호
+        :return:
+        """
+        ret = self.tr_mgr.opt10077(rqname, account_no, account_pw, code, screen_no)
+        return ret
+
+    def 계좌평가현황요청(self, rqname, account_no, account_pw, gubun, screen_no):
+        """
+        당일실현손익상세요청 TR
+        :param rqname str: 요청명
+        :param account_no str: 계좌번호
+        :param account_pw str: 계좌번호 비밀번호
+        :param gubun str: 상장폐지조회구분 (0: 전체, 1:상장폐지종목제외)
+        :param screen_no str: 화면번호
+        :return:
+        """
+        ret = self.tr_mgr.opw00004(rqname, account_no, account_pw, gubun, "00", screen_no)
+        return ret
+
+    def 계좌평가잔고내역요청(self, rqname, account_no, account_pw, gubun, screen_no):
+        """
+        당일실현손익상세요청 TR
+        :param rqname str: 요청명
+        :param account_no str: 계좌번호
+        :param account_pw str: 계좌번호 비밀번호
+        :param gubun str: 조회구분 (1: 합산, 2: 개별)
+        :param screen_no str: 화면번호
+        :return:
+        """
+        ret = self.tr_mgr.opw00018(rqname, account_no, account_pw, "00", gubun, screen_no)
+        return ret
+
     def get_master_listed_stock_cnt(self, code):
         """
         종목코드의 상장주식수를 반환한다.
