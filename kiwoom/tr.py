@@ -251,7 +251,6 @@ class TrManager():
         f = ["일자", "종목코드", "종목명", "현재가", "매입가", "매입금액", "보유수량",
              "당일매도손익", "당일매매수수료", "당일매매세금", "신용구분", "대출일",
              "결제잔고", "청산가능수량", "신용금액", "신용이자", "만기일"]
-        pdb.set_trace()
         self.tr_ret_data = [zip(f, [_.strip() for _ in d]) for d in data]
         self.tr_next = next
 
@@ -298,11 +297,40 @@ class TrManager():
         return self.tr_ret_data
 
     def post_opw00004(self, trcode, rqname, next):
-        data = self.kw._get_comm_data_ex(trcode, '종목별계좌평가현황')
-        pdb.set_trace()
-        f = ["종목코드", "종목명", "보유수량", "평균단가", "현재가", "평가금액", "손익금액",
-             "손익율", "대출일", "매입금액", "결제잔고", "전일매수수량", "전일매도수량", "금일매수수량", "금일매도수량"]
-        self.tr_ret_data = [zip(f, [_.strip() for _ in d]) for d in data]
+        # data = self.kw._get_comm_data_ex(trcode, '종목별계좌평가현황')
+        n = self.kw._get_repeat_cnt(trcode, rqname)
+        account_field = ["예수금", "D+2추정예수금", "유가잔고평가액",
+                         "예탁자산평가액", "총매입금액", "추정예탁자산"]
+
+        stock_field = ["종목코드", "종목명", "보유수량", "평균단가", "현재가", "평가금액",
+                       "손익금액", "손익율", "매입금액",
+                       "전일매수수량", "전일매도수량", "금일매수수량", "금일매도수량"]
+
+        self.tr_ret_data = {
+            "계좌정보": None,
+            "종목정보": []
+        }
+
+        tmp = {}
+        for f in account_field:
+            data = self.kw._get_comm_data(trcode, '계좌평가현황', 0, f)
+            tmp[f] = float(data[1:]) if data.startswith("-") else float(data)
+        self.tr_ret_data["계좌정보"] = tmp
+
+        for i in range(n):
+            tmp = {}
+            for f in stock_field:
+                data = self.kw._get_comm_data(trcode, '계좌평가현황', i, f)
+
+                try:
+                    if f in ["손익금액", "손익율"]:
+                        data = float(data)
+                    else:
+                        data = float(data[1:]) if data.startswith("-") else float(data)
+                    tmp[f] = data
+                except ValueError as e:
+                    tmp[f] = data.strip()
+            self.tr_ret_data["종목정보"].append(tmp)
         self.tr_next = next
 
     @init_tr_ret_data
@@ -355,6 +383,10 @@ class TrManager():
             self.logger.error(e)
 
         self.kw.evt_loop.exit()  # release event loop
+
+        # callback
+        if (rqname, screen_no) in self.kw.notify_fn["OnReceiveTrData"]:
+            self.kw.notify_fn[(rqname, screen_no)]()
 
     def post_opt10026(self, trcode, rqname, next):
         data = self.kw._get_comm_data_ex(trcode, '고저PER')

@@ -35,7 +35,16 @@ class Kiwoom(QAxWidget):
         self._create_kiwoom_instance()
         self._set_signal_slots()
         self.tr_controller = TrController(self)
-        self.notify_fn = {}
+        self.notify_fn = {
+            "OnEventConnect": {},
+            "OnReceiveTrData": {},
+            "OnReceiveRealData": {},
+            "OnReceiveRealCondition": [],
+            "OnReceiveTrCondition": {},
+            "OnReceiveConditionVer": {},
+            "OnReceiveChejanData": {},
+            "OnReceiveMsg": {},
+        }
 
     def _create_kiwoom_instance(self):
         self.setControl("KHOPENAPI.KHOpenAPICtrl.1")
@@ -107,6 +116,8 @@ class Kiwoom(QAxWidget):
         return result
         """
 
+
+
     def _on_receive_real_condition(self, code, event_type, condi_name, condi_index):
         """
         Kiwoom Receive Realtime Condition Result(stock list) Callback, 조건검색 실시간 편입, 이탈 종목을 받을 시점을 알려준다.
@@ -134,10 +145,10 @@ class Kiwoom(QAxWidget):
                 key = ("* " + d[0]).rjust(max_key_cnt)
                 self.logger.info("{0}: {1}".format(key, d[1]))
             self.logger.info("-" * max_char_cnt)
-            data = dict(data)
-            data["kw_event"] = "OnReceiveRealCondition"
-            if '_on_receive_real_condition' in self.notify_fn:
-                self.notify_fn['_on_receive_real_condition'](data)
+
+            # callback
+            for fn in self.notify_fn['OnReceiveRealCondition']:
+                fn(dict(data))
 
         except Exception as e:
             self.logger.error(e)
@@ -170,13 +181,13 @@ class Kiwoom(QAxWidget):
                 key = ("* " + d[0]).rjust(max_key_cnt)
                 self.logger.info("{0}: {1}".format(key, d[1]))
             self.logger.info("-" * max_char_cnt)
-            data = dict(data)
-            data["kw_event"] = "OnReceiveTrCondition"
-            if screen_no in self.notify_fn:
-                self.notify_fn[screen_no](data)
             self.condition_search_result = code_list.strip(";").split(";")
-
             self.evt_loop.exit()  # lock event
+
+            # callback
+            if screen_no in self.notify_fn["OnReceiveTrCondition"]:
+                self.notify_fn["OnReceiveTrCondition"][screen_no](dict(data))
+
         except Exception as e:
             self.logger.error(e)
             self.logger.error("screen_no: {}".format(screen_no))
@@ -185,7 +196,6 @@ class Kiwoom(QAxWidget):
             self.logger.error("condi_index:".format(condi_index))
             self.logger.error("next:".format(next))
         finally:
-
             self.evt_loop.exit()  # lock event
 
     def _on_receive_condition_ver(self, ret_code, condition_text):
@@ -226,8 +236,16 @@ class Kiwoom(QAxWidget):
             self.logger.info("gubun(0:주문체결통보, 1:잔고통보, 3:특이신호): {}".format(gubun))
             self.logger.info("item_cnt: {}".format(item_cnt))
             self.logger.info("fid_list: {}".format(fid_list))
+
+            # data = get_data_with_fid()
+            # callback
+            # for fn in self.kw.notify_fn["OnReceiveChejanData"]:
+            #     fn(data)
+
         except Exception as e:
             self.logger.error("[Error] {}".format(e))
+
+
 
     def _on_receive_msg(self, screen_no, rqname, trcode, msg):
         """
@@ -567,7 +585,7 @@ class Kiwoom(QAxWidget):
         당일실현손익상세요청 TR
         :param rqname str: 요청명
         :param account_no str: 계좌번호
-        :param account_pw str: 계좌번호 비밀번호
+        :param account_pw str: 계좌번호 비밀번호(모투에서는 공백 "")
         :param gubun str: 상장폐지조회구분 (0: 전체, 1:상장폐지종목제외)
         :param screen_no str: 화면번호
         :return:
@@ -686,7 +704,8 @@ class Kiwoom(QAxWidget):
         hoga_gubun – 00:지정가,    03:시장가,    05:조건부지정가,   06:최유리지정가, 07:최우선지정가,
                      10:지정가IOC, 13:시장가IOC, 16:최유리IOC,      20:지정가FOK,
                      23:시장가FOK, 26:최유리FOK, 61:장전시간외종가,  62:시간외단일가, 81:장후시간외종가
-        ※ 시장가, 최유리지정가, 최우선지정가, 시장가IOC, 최유리IOC, 시장가FOK, 최유리FOK, 장전시간외, 장후시간외 주문시 주문가격을 입력하지 않습니다.
+        ※ 시장가, 최유리지정가, 최우선지정가, 시장가IOC, 최유리IOC, 시장가FOK, 최유리FOK, 장전시간외, 장후시간외 주문시
+          주문가격을 입력하지 않습니다.
         :param rqname: str -
         :param screen_no: str -
         :param acc_no: str -
@@ -698,6 +717,7 @@ class Kiwoom(QAxWidget):
         :param orig_order_no: str -
         :return:
         """
+        self.tr_controller.prevent_excessive_request()
         ret = self.dynamicCall("SendOrder(QString, QString, QString, int, QString, int, int, QString, QString)",
                                [rqname, screen_no, acc_no, order_type, code, quantity, price, hoga_gubun, orig_order_no])
         return ret
@@ -705,6 +725,13 @@ class Kiwoom(QAxWidget):
     def get_api_module_path(self):
         ret = self.dynamicCall("GetAPIModulePath()")
         return ret
+
+    def reg_callback(self, event, key, fn):
+        if event in ["OnReceiveTrCondition", "OnReceiveTrData"]:
+            self.notify_fn[event][key] = fn
+        else:  # OnReceiveRealCondition, OnReceiveChejanData
+            if event not in self.notify_fn:
+                self.notify_fn[event].append(fn)
 
     def _get_comm_real_data(self, code, fid):
         """
@@ -800,3 +827,4 @@ class Kiwoom(QAxWidget):
         """
         ret = self.dynamicCall("GetCommData(QString, QString, int, QString)", trcode, field_name, index, item_name)
         return ret.strip()
+

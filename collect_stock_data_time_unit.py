@@ -174,7 +174,13 @@ class TopTrader(QMainWindow, ui):
                                          upsert=True)
                 exit(0)
 
-            self.upsert_db(col, doc)
+            try:
+                col.insert(doc)
+            except pymongo.errors.InvalidOperation as e:
+                # cannot do an empty bulk write ?
+                self.logger.error(e)
+
+            # self.upsert_db(col, doc)
             self.tt_db.time_series_temp.update({'type': duration},
                                                {'type': duration,
                                                 'code': code,
@@ -245,7 +251,8 @@ class TopTrader(QMainWindow, ui):
                                          {'type': 'error', 'error_code': e.error_code},
                                          upsert=True)
                 exit(0)
-            self.upsert_db(col, doc)
+            col.insert(doc)
+            # self.upsert_db(col, doc)
             self.tt_db.time_series_temp.update({'type': duration},
                                                {'type': duration,
                                                 'code': code,

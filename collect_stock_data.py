@@ -64,5 +64,5 @@ if __name__ == "__main__":
         "min60",
         "day",
         "week",
-        "month"
+        # "month"
     ])
