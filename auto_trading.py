@@ -55,7 +55,7 @@ class TopTrader(QMainWindow, ui):
         err_code = self.kw.login()
         if err_code != 0:
             self.tt_logger.error("Login Fail")
-            return
+            exit(-1)
         self.tt_logger.info("Login success")
 
     def load_stock_info(self):
@@ -85,7 +85,10 @@ class TopTrader(QMainWindow, ui):
     def set_account(self):
         self.acc_no = self.kw.get_login_info("ACCNO")
         self.acc_no = self.acc_no.strip(";")  # 계좌 1개를 가정함.
-        self.stock_account = self.kw.계좌평가현황요청("계좌평가현황요청", self.acc_no, "", "1", "6001")
+        self.stock_account = self.account_stat(self.acc_no)
+
+        # kiwoom default account setting
+        self.kw.set_account(self.acc_no)
 
     def start_timer(self):
         if self.timer:
@@ -97,7 +100,7 @@ class TopTrader(QMainWindow, ui):
         self.timer.start(30000) # 30 sec interval
 
     def sell(self):
-        self.update_account()
+        self.stock_account = self.account_stat(self.acc_no)
         curr_time = datetime.today()
         print("=" * 50)
         print("현재 계좌 현황입니다...")
@@ -109,12 +112,14 @@ class TopTrader(QMainWindow, ui):
 
             if data["손익율"] > 3.0 or data["손익율"] < -2.0:
                 if data["손익율"] > 0:
-                    print("시장가로 물량 전부 익절합니다. ^^    [{}, {}주]".format(stock_name, quantity))
+                    print("시장가로 물량 전부 익절합니다. ^^    [{}:{}, {}주]".format(stock_name, code, quantity))
                 else:
-                    print("시장가로 물량 전부 손절합니다. ㅜㅜ. [{}, {}주]".format(stock_name, quantity))
+                    print("시장가로 물량 전부 손절합니다. ㅜㅜ. [{}:{}, {}주]".format(stock_name, code, quantity))
 
-                self.kw.reg_callback("OnReceiveChejanData", ("시장가매도", "5001"), self.update_account)
-                self.kw.send_order("시장가매도", "5001", self.acc_no, 2, code, quantity, 0, "03", "")
+                self.kw.reg_callback("OnReceiveChejanData", ("시장가매도", "5001"), self.account_stat)
+
+                self.kw.시장가_신규매도(code, quantity)
+                # self.kw.send_order("시장가매도", "5001", self.acc_no, 2, code, quantity, 0, "03", "")
                 self.tt_db.trading_history.insert({
                     'date': curr_time,
                     'code': code,
@@ -129,9 +134,9 @@ class TopTrader(QMainWindow, ui):
                     'account_no': self.acc_no
                 })
 
-    def update_account(self):
-        print("계좌평가현황요청")
-        self.stock_account = self.kw.계좌평가현황요청("계좌평가현황요청", self.acc_no, "", "1", "6001")
+    def account_stat(self, acc_no):
+        self.tt_logger.info("계좌평가현황요청")
+        return self.kw.계좌평가현황요청("계좌평가현황요청", acc_no, "", "1", "6001")
 
     def search_condi(self, event_data):
         """키움모듈의 OnReceiveRealCondition 이벤트 수신되면 호출되는 callback함수
@@ -163,7 +168,7 @@ class TopTrader(QMainWindow, ui):
                 return
             curr_price = self.kw.get_curr_price(event_data["code"])
             quantity = int(100000/curr_price)
-            self.kw.reg_callback("OnReceiveChejanData", ("조건식매수", "5000"), self.update_account)
+            self.kw.reg_callback("OnReceiveChejanData", ("조건식매수", "5000"), self.account_stat)
             self.tt_db.trading_history.insert({
                 'date': curr_time,
                 'code': event_data["code"],
@@ -176,7 +181,8 @@ class TopTrader(QMainWindow, ui):
                 'hoga_gubun': '시장가',
                 'account_no': self.acc_no
             })
-            self.kw.send_order("조건식매수", "5000", self.acc_no, 1, event_data["code"], quantity, 0, "03", "")
+            self.kw.시장가_신규매수(event_data["code"], quantity)
+            # self.kw.send_order("조건식매수", "5000", self.acc_no, 1, event_data["code"], quantity, 0, "03", "")
 
     def auto_trading(self):
         """키움증권 HTS에 등록한 조건검색식에서 검출한 종목을 매수하고

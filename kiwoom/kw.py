@@ -35,6 +35,7 @@ class Kiwoom(QAxWidget):
         self._create_kiwoom_instance()
         self._set_signal_slots()
         self.tr_controller = TrController(self)
+        self.acc_no = ""
         self.notify_fn = {
             "OnEventConnect": {},
             "OnReceiveTrData": {},
@@ -244,8 +245,6 @@ class Kiwoom(QAxWidget):
 
         except Exception as e:
             self.logger.error("[Error] {}".format(e))
-
-
 
     def _on_receive_msg(self, screen_no, rqname, trcode, msg):
         """
@@ -696,6 +695,44 @@ class Kiwoom(QAxWidget):
         :param code: str - 종목코드 또는 "ALL" 키워드 사용가능
         """
         self.dynamicCall("SetRealRemove(QString, QString)", screen_no, code)
+
+    def set_account(self, acc_no):
+        self.acc_no = acc_no
+
+    # 주문 관련 high level functions
+    def check_acc_no(f):
+        @wraps(f)
+        def wrapper(*args, **kwargs):
+            pdb.set_trace()
+            if not bool(args.self.acc_no):
+                args.self.logger.error("account_no is not set.")
+            ret = f(*args, **kwargs)
+            return ret
+        return wrapper
+
+    @check_acc_no
+    def 시장가_신규매수(self, code, quantity):
+        self.send_order("시장가_신규매수", "4001", self.acc_no, 1, code, quantity, 0, "03", "")
+
+    @check_acc_no
+    def 지정가_신규매수(self, code, quantity, price):
+        self.send_order("지정가_신규매수", "4002", self.acc_no, 1, code, quantity, price, "00", "")
+
+    @check_acc_no
+    def 매수취소(self, code, quantity):
+        self.send_order("매수취소", "4003", self.acc_no, 3, code, quantity, 0, "00", "")
+
+    @check_acc_no
+    def 시장가_신규매도(self, code, quantity):
+        self.send_order("시장가_신규매도", "4011", self.acc_no, 2, code, quantity, 0, "03", "")
+
+    @check_acc_no
+    def 지정가_신규매도(self, code, quantity, price):
+        self.send_order("지정가_신규매도", "4012", self.acc_no, 2, code, quantity, price, "00", "")
+
+    @check_acc_no
+    def 매도취소(self, code, quantity):
+        self.send_order("매도취소", "4013", self.acc_no, 4, code, quantity, 0, "00", "")
 
     def send_order(self, rqname, screen_no, acc_no, order_type, code, quantity, price, hoga_gubun, orig_order_no):
         """
