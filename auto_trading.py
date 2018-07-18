@@ -37,7 +37,7 @@ ui = uic.loadUiType(config_manager.MAIN_UI_PATH)[0]
 class TopTrader(QMainWindow, ui):
     def __init__(self):
         super().__init__()
-        self.tt_logger = TTlog()
+        self.tt_logger = TTlog().logger
         self.mongo = MongoClient()
         self.tt_db = self.mongo.TopTrader
         self.slack = Slacker(config_manager.SLACK_TOKEN)
@@ -102,7 +102,7 @@ class TopTrader(QMainWindow, ui):
         print("=" * 50)
         print("현재 계좌 현황입니다...")
         for data in self.stock_account["종목정보"]:
-            stock_name, code, quantity = data["종목코드"], data["종목명"], data["보유수량"]
+            code, stock_name, quantity = data["종목코드"], data["종목명"], int(data["보유수량"])
             print("* 종목: {}, 손익율: {}%, 보유수량: {}, 평가금액: {}원".format(
                 data["종목명"], ("%.2f" % data["손익율"]), int(data["보유수량"]), format(int(data["평가금액"]), ',')
             ))
@@ -147,7 +147,6 @@ class TopTrader(QMainWindow, ui):
         :param dict event_data:
         :return:
         """
-
         curr_time = datetime.today()
         # 실시간 조건검색 이력정보
         self.tt_db.real_condi_search.insert({
@@ -186,7 +185,7 @@ class TopTrader(QMainWindow, ui):
         :return:
         """
         # callback fn 등록
-        self.kw.notify_fn["_on_receive_real_condition"] = self.search_condi
+        self.kw.notify_fn["OnReceiveRealCondition"] = self.search_condi
 
         screen_no = "4000"
         condi_info = self.kw.get_condition_load()

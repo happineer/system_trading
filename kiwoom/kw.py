@@ -27,7 +27,7 @@ from functools import wraps
 class Kiwoom(QAxWidget):
     def __init__(self):
         super().__init__()
-        self.logger = KWlog()
+        self.logger = KWlog().logger
         self.tr_mgr = TrManager(self)
         self.evt_loop = QEventLoop()  # lock/release event loop
         self.ret_data = None
@@ -730,7 +730,7 @@ class Kiwoom(QAxWidget):
         if event in ["OnReceiveTrCondition", "OnReceiveTrData"]:
             self.notify_fn[event][key] = fn
         else:  # OnReceiveRealCondition, OnReceiveChejanData
-            if event not in self.notify_fn:
+            if fn not in self.notify_fn[event]:
                 self.notify_fn[event].append(fn)
 
     def _get_comm_real_data(self, code, fid):
