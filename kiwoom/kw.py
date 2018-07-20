@@ -8,6 +8,7 @@ import pandas as pd
 import pdb
 import random
 import logging
+import inspect
 import logging.config
 from pprint import pprint
 from kiwoom import custom_error
@@ -29,6 +30,7 @@ class Kiwoom(QAxWidget):
         super().__init__()
         self.logger = KWlog().logger
         self.tr_mgr = TrManager(self)
+        self.chejan = Chejan(self)
         self.evt_loop = QEventLoop()  # lock/release event loop
         self.ret_data = None
         self.req_queue = deque(maxlen=10)
@@ -43,7 +45,7 @@ class Kiwoom(QAxWidget):
             "OnReceiveRealCondition": [],
             "OnReceiveTrCondition": {},
             "OnReceiveConditionVer": {},
-            "OnReceiveChejanData": {},
+            "OnReceiveChejanData": [],
             "OnReceiveMsg": {},
         }
 
@@ -68,6 +70,8 @@ class Kiwoom(QAxWidget):
         :return:
         """
         self.ret_data = err_code
+        self.logger.info("  ==================> [IMPORTANT] EVENT_LOOP <- RELEASE")
+        time.sleep(0.5)
         self.evt_loop.exit()  # release event loop
 
     def _on_receive_real_data(self, code, real_type, real_data):
@@ -148,10 +152,12 @@ class Kiwoom(QAxWidget):
             self.logger.info("-" * max_char_cnt)
 
             # callback
+            self.logger.info("[OnReceiveRealCondition] Notify Callback methods..")
             for fn in self.notify_fn['OnReceiveRealCondition']:
                 fn(dict(data))
 
         except Exception as e:
+            print("_on_receive_real_condition Error")
             self.logger.error(e)
         finally:
             self.real_condition_search_result = []
@@ -183,6 +189,8 @@ class Kiwoom(QAxWidget):
                 self.logger.info("{0}: {1}".format(key, d[1]))
             self.logger.info("-" * max_char_cnt)
             self.condition_search_result = code_list.strip(";").split(";")
+            self.logger.info("  ==================> [IMPORTANT] EVENT_LOOP <- RELEASE")
+            time.sleep(0.5)
             self.evt_loop.exit()  # lock event
 
             # callback
@@ -197,6 +205,8 @@ class Kiwoom(QAxWidget):
             self.logger.error("condi_index:".format(condi_index))
             self.logger.error("next:".format(next))
         finally:
+            self.logger.info("  ==================> [IMPORTANT] EVENT_LOOP <- RELEASE")
+            time.sleep(0.5)
             self.evt_loop.exit()  # lock event
 
     def _on_receive_condition_ver(self, ret_code, condition_text):
@@ -218,30 +228,45 @@ class Kiwoom(QAxWidget):
             for condition_info in condi_name_list.split(";")[:-1]:
                 condi_index, condi_name = condition_info.split("^")
                 self.condition[condi_name] = condi_index
+            self.logger.info("  ==================> [IMPORTANT] EVENT_LOOP <- RELEASE")
+            time.sleep(0.5)
             self.evt_loop.exit()
         except Exception as e:
             self.logger.error("_on_receive_condition_ver")
         finally:
+            self.logger.info("  ==================> [IMPORTANT] EVENT_LOOP <- RELEASE")
+            time.sleep(0.5)
             self.evt_loop.exit()
 
     def _on_receive_chejan_data(self, gubun, item_cnt, fid_list):
-        """
-        Kiwoom Receive Chejan Data Callback, 체결데이터를 받은 시점을 알려준다.
+        """Kiwoom Receive Chejan Data Callback, 체결데이터를 받은 시점을 알려준다.
+        주문요청후 주문접수, 체결통보, 잔고통보를 수신할 때 마다 호출됩니다.
+
         :param gubun str: 체결 구분 (0:주문체결통보, 1:잔고통보, 3:특이신호)
         :param item_cnt int: 아이템 갯수
         :param fid_list str: 데이터리스트 (데이터 구분은 ';')
         :return:
         """
         try:
+            gubun = int(gubun)
             self.logger.info("(!)[Callback] _on_receive_chejan_data")
             self.logger.info("gubun(0:주문체결통보, 1:잔고통보, 3:특이신호): {}".format(gubun))
             self.logger.info("item_cnt: {}".format(item_cnt))
             self.logger.info("fid_list: {}".format(fid_list))
 
-            # data = get_data_with_fid()
+            # 주문통보/체결통보
+            if gubun == 0:
+                self.logger.info("주문통보/체결통보")
+            # 잔고통보
+            elif gubun == 1:
+                self.logger.info("잔고통보")
+
+            data = self.chejan.make_data(gubun, item_cnt, fid_list)
+
             # callback
-            # for fn in self.kw.notify_fn["OnReceiveChejanData"]:
-            #     fn(data)
+            self.logger.info("[OnReceiveChejanData] Notify callback method..")
+            for fn in self.notify_fn["OnReceiveChejanData"]:
+                fn(data)
 
         except Exception as e:
             self.logger.error("[Error] {}".format(e))
@@ -278,7 +303,9 @@ class Kiwoom(QAxWidget):
         :return: int - 0:로그인 성공, 음수:로그인 실패
         """
         self.dynamicCall("CommConnect()")
-        self.evt_loop.exec_()  # lock event
+        self.logger.info("  ==================> [IMPORTANT] EVENT_LOOP -> LOCK")
+        time.sleep(0.5)
+        self.evt_loop.exec_()
         return self.ret_data
 
     def avoid_server_check_time(f):
@@ -320,6 +347,13 @@ class Kiwoom(QAxWidget):
         :return int: 리턴값 1:연결, 0:연결안됨
         """
         return self.dynamicCall("GetConnectState()")
+
+    def get_chejan_data(self, fid):
+        """
+
+        :return:
+        """
+        return self.dynamicCall("GetChejanData(int)", fid)
 
     def get_server_gubun(self):
         """
@@ -391,6 +425,8 @@ class Kiwoom(QAxWidget):
         ret = self.dynamicCall("GetConditionLoad()")
         if ret != 1:
             return False
+        self.logger.info("  ==================> [IMPORTANT] EVENT_LOOP -> LOCK")
+        time.sleep(0.5)
         self.evt_loop.exec_()
         return self.condition
 
@@ -439,6 +475,8 @@ class Kiwoom(QAxWidget):
                                    screen_no, condi_name, condi_index, search_type)
             if ret == 0:
                 raise constant.KiwoomProcessingError("sendCondition(): 조건검색 요청 실패")
+            self.logger.info("  ==================> [IMPORTANT] EVENT_LOOP -> LOCK")
+            time.sleep(0.5)
             self.evt_loop.exec_()  # lock event
 
             return self.condition_search_result
@@ -703,9 +741,11 @@ class Kiwoom(QAxWidget):
     def check_acc_no(f):
         @wraps(f)
         def wrapper(*args, **kwargs):
-            pdb.set_trace()
-            if not bool(args.self.acc_no):
-                args.self.logger.error("account_no is not set.")
+            # args[0] = self
+            if bool(args):
+                self = args[0]
+                if not bool(self.acc_no):
+                    args[0].logger.error("account_no is not set.")
             ret = f(*args, **kwargs)
             return ret
         return wrapper
@@ -770,6 +810,14 @@ class Kiwoom(QAxWidget):
             if fn not in self.notify_fn[event]:
                 self.notify_fn[event].append(fn)
 
+    def get_curr_price(self, code):
+        """
+
+        :param code:
+        :return:
+        """
+        return 10000
+
     def _get_comm_real_data(self, code, fid):
         """
         실시간 데이터 획득 메서드
@@ -825,7 +873,9 @@ class Kiwoom(QAxWidget):
         time.sleep(0.2)  # avoid over request
 
         # when receive data, invoke self._on_receive_tr_data
-        self.evt_loop.exec_()  # lock event loop
+        self.logger.info("  ==================> [IMPORTANT] EVENT_LOOP -> LOCK")
+        time.sleep(0.5)
+        self.evt_loop.exec_()
         return ret_code
 
     def _comm_kw_rq_data(self, rqname, code_list, screen_no, type_flag, next):
@@ -841,6 +891,8 @@ class Kiwoom(QAxWidget):
         code_cnt = len(code_list.strip(";").split(";"))
         ret_code = self.dynamicCall("CommKwRqData(QString, int, int, int, QString, QString)",
                                     code_list, next, code_cnt, type_flag, rqname, screen_no)
+        self.logger.info("  ==================> [IMPORTANT] EVENT_LOOP -> LOCK")
+        time.sleep(0.5)
         self.evt_loop.exec_()
         return ret_code
 
@@ -865,3 +917,83 @@ class Kiwoom(QAxWidget):
         ret = self.dynamicCall("GetCommData(QString, QString, int, QString)", trcode, field_name, index, item_name)
         return ret.strip()
 
+
+class Chejan(object):
+    """receiveChejanData() 이벤트 메서드로 전달되는 FID 목록
+    """
+
+    fid_table = {
+        9201: '계좌번호',
+        9203: '주문번호',
+        9205: '관리자사번',
+        9001: '종목코드',
+        912: '주문업무분류',
+        913: '주문상태',
+        302: '종목명',
+        900: '주문수량',
+        901: '주문가격',
+        902: '미체결수량',
+        903: '체결누계금액',
+        904: '원주문번호',
+        905: '주문구분',
+        906: '매매구분',
+        907: '매도수구분',
+        908: '주문/체결시간',
+        909: '체결번호',
+        910: '체결가',
+        911: '체결량',
+        10: '현재가',
+        11: '전일대비',
+        25: '전일대비기호',
+        27: '(최우선)매도호가',
+        28: '(최우선)매수호가',
+        914: '단위체결가',
+        915: '단위체결량',
+        938: '당일매매수수료',
+        939: '당일매매세금',
+        919: '거부사유',
+        920: '화면번호',
+        921: '921',
+        922: '922',
+        923: '923',
+        949: '949',
+        10010: '10010',
+        917: '신용구분',
+        916: '대출일',
+        930: '보유수량',
+        931: '매입단가',
+        932: '총매입가',
+        933: '주문가능수량',
+        945: '당일순매수수량',
+        946: '매도/매수구분',
+        950: '당일총매도손일',
+        951: '예수금',
+        307: '기준가',
+        8019: '손익율',
+        957: '신용금액',
+        958: '신용이자',
+        959: '담보대출수량',
+        924: '924',
+        918: '만기일',
+        990: '당일실현손익(유가)',
+        991: '당일신현손익률(유가)',
+        992: '당일실현손익(신용)',
+        993: '당일실현손익률(신용)',
+        397: '파생상품거래단위',
+        305: '상한가',
+        306: '하한가'
+    }
+
+    def __init__(self, kw):
+        self.kw = kw
+        self.gubun = ""
+
+    def make_data(self, gubun, item_cnt, fid_list):
+        data = {"gubun": gubun}
+
+        for fid in fid_list.split(";"):
+            fid = int(fid)
+            key = self.fid_table[fid]
+            value = self.kw.get_chejan_data(fid)
+            data[key] = value
+        return data

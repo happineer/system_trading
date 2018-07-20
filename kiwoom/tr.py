@@ -332,6 +332,8 @@ class TrManager():
                     tmp[f] = data.strip()
             self.tr_ret_data["종목정보"].append(tmp)
         self.tr_next = next
+        self.logger.info("[POST_OPW00004] completed")
+        # self.logger.info(self.tr_ret_data)
 
     @init_tr_ret_data
     def opw00018(self, rqname, account_no, account_pw, pw_gubun, gubun, screen_no):
@@ -360,6 +362,50 @@ class TrManager():
         self.tr_ret_data = [zip(f, [_.strip() for _ in d]) for d in data]
         self.tr_next = next
 
+    def post_koa_normal_buy_kp_ord(self, trcode, rqname, next):
+        """kospi stock buy order completed method
+
+        :param trcode:
+        :param rqname:
+        :param next:
+        :return:
+        """
+        self.logger.info("kospi stock buy order is completed. (rqname: {})".format(rqname))
+        self.tr_ret_data = []
+
+    def post_koa_normal_buy_kq_ord(self, trcode, rqname, next):
+        """kosdaq stock buy order completed method
+
+        :param trcode:
+        :param rqname:
+        :param next:
+        :return:
+        """
+        self.logger.info("kosdaq stock buy order is completed. (rqname: {})".format(rqname))
+        self.tr_ret_data = []
+
+    def post_koa_normal_sell_kp_ord(self, trcode, rqname, next):
+        """kospi stock sell order completed method
+
+        :param trcode:
+        :param rqname:
+        :param next:
+        :return:
+        """
+        self.logger.info("kospi stock sell order is completed. (rqname: {})".format(rqname))
+        self.tr_ret_data = []
+
+    def post_koa_normal_sell_kq_ord(self, trcode, rqname, next):
+        """kosdaq stock sell order completed method
+
+        :param trcode:
+        :param rqname:
+        :param next:
+        :return:
+        """
+        self.logger.info("kosdaq stock sell order is completed. (rqname: {})".format(rqname))
+        self.tr_ret_data = []
+
     def _on_receive_tr_data(self, screen_no, rqname, trcode, record_name, next, _1, _2, _3, _4):
         """
         Kiwoom Receive TR Callback, 서버통신 후 데이터를 받은 시점을 알려준다.
@@ -373,18 +419,23 @@ class TrManager():
         :param next: string - 연속조회유무 ('0': 남은 데이터 없음, '2': 남은 데이터 있음)
         """
         self.logger.info("(!)[Callback] _on_receive_tr_data")
+        self.logger.info("trcode : {}".format(trcode))
         try:
-            post_fn = eval('self.post_' + trcode.lower())
+            post_fn_name = 'post_' + trcode.lower()
+            print("post_fn_name: {}".format(post_fn_name))
+            post_fn = eval("self." + post_fn_name)
             # post_fn = self.tr_post.fn_table[rqname]
             post_fn(trcode, rqname, next)
         except AttributeError as e:
             self.logger.error(e)
         except Exception as e:
             self.logger.error(e)
-
+        self.logger.info("  ========================> [IMPORTANT] EVENT_LOOP -> RELEASE")
+        time.sleep(0.5)
         self.kw.evt_loop.exit()  # release event loop
 
         # callback
+        self.logger.info("[OnReceiveTrData] Notify callback method..")
         if (rqname, screen_no) in self.kw.notify_fn["OnReceiveTrData"]:
             self.kw.notify_fn[(rqname, screen_no)]()
 
