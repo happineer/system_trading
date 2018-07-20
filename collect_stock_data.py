@@ -19,7 +19,7 @@ def main(duration_list):
     mongo = MongoClient()
     db = mongo.TopTrader
     with open("collect_stock_data_last_date.txt") as f:
-        date_str = f.read().strip().split(" ")
+        date_str = [int(n) for n in f.read().strip().split(" ")]
     end_date = datetime.datetime(*date_str)
     t_slack = TTSlack()
 
@@ -64,5 +64,5 @@ if __name__ == "__main__":
         "min60",
         "day",
         "week",
-        "month"
+        # "month"
     ])

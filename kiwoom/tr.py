@@ -233,6 +233,179 @@ class TrManager():
             self.tr_ret_data.append(stock_data)
         self.tr_next = next
 
+    @init_tr_ret_data
+    def opt10085(self, rqname, account_no, screen_no):
+        """
+        계좌수익률 요청 TR
+        :param rqname str: 요청명
+        :param account_no str: 계좌번호
+        :param screen_no str: 화면번호
+        :return:
+        """
+        self.kw._set_input_value("계좌번호", account_no)
+        self.kw._comm_rq_data(rqname, "opt10085", "0", screen_no)  # lock event loop
+        return self.tr_ret_data
+
+    def post_opt10085(self, trcode, rqname, next):
+        data = self.kw._get_comm_data_ex(trcode, '계좌수익률')
+        f = ["일자", "종목코드", "종목명", "현재가", "매입가", "매입금액", "보유수량",
+             "당일매도손익", "당일매매수수료", "당일매매세금", "신용구분", "대출일",
+             "결제잔고", "청산가능수량", "신용금액", "신용이자", "만기일"]
+        self.tr_ret_data = [zip(f, [_.strip() for _ in d]) for d in data]
+        self.tr_next = next
+
+    @init_tr_ret_data
+    def opt10077(self, rqname, account_no, account_pw, code, screen_no):
+        """
+        당일실현손익상세요청 요청 TR
+        :param account_no str: 계좌번호
+        :param account_pw str: 비밀번호
+        :param code str: 종목코드
+        :param screen_no str: 화면번호
+        :return:
+        """
+        self.kw._set_input_value("계좌번호", account_no)
+        self.kw._set_input_value("비밀번호", account_pw)
+        self.kw._set_input_value("종목코드", code)
+        self.kw._comm_rq_data(rqname, "opt10077", "0", screen_no)  # lock event loop
+        return self.tr_ret_data
+
+    def post_opt10077(self, trcode, rqname, next):
+        data = self.kw._get_comm_data_ex(trcode, '당일실현손익상세')
+        f = ["종목명", "체결명", "매입단가", "체결가", "당일매도손익", "손익율",
+             "당일매매수수료", "당일매매세금", "종목코드"]
+        self.tr_ret_data = [zip(f, [_.strip() for _ in d]) for d in data]
+        self.tr_next = next
+
+    @init_tr_ret_data
+    def opw00004(self, rqname, account_no, account_pw, gubun, pw_gubun, screen_no):
+        """
+        계좌평가현황요청 TR
+        :param rqname str: 요청명
+        :param account_no str: 계좌번호
+        :param account_pw str: 비밀번호
+        :param gubun str: 상장폐지조회구분 (0: 전체, 1:상장폐지종목제외)
+        :param pw_gubun str: 비밀번호입력매체구분 ("00")
+        :param screen_no str: 화면번호
+        :return:
+        """
+        self.kw._set_input_value("계좌번호", account_no)
+        self.kw._set_input_value("비밀번호", account_pw)
+        self.kw._set_input_value("상장폐지조회구분", gubun)
+        self.kw._set_input_value("비밀번호입력매체구분", pw_gubun)
+        self.kw._comm_rq_data(rqname, "OPW00004", "0", screen_no)  # lock event loop
+        return self.tr_ret_data
+
+    def post_opw00004(self, trcode, rqname, next):
+        # data = self.kw._get_comm_data_ex(trcode, '종목별계좌평가현황')
+        n = self.kw._get_repeat_cnt(trcode, rqname)
+        account_field = ["예수금", "D+2추정예수금", "유가잔고평가액",
+                         "예탁자산평가액", "총매입금액", "추정예탁자산"]
+
+        stock_field = ["종목코드", "종목명", "보유수량", "평균단가", "현재가", "평가금액",
+                       "손익금액", "손익율", "매입금액",
+                       "전일매수수량", "전일매도수량", "금일매수수량", "금일매도수량"]
+
+        self.tr_ret_data = {
+            "계좌정보": None,
+            "종목정보": []
+        }
+
+        tmp = {}
+        for f in account_field:
+            data = self.kw._get_comm_data(trcode, '계좌평가현황', 0, f)
+            tmp[f] = float(data[1:]) if data.startswith("-") else float(data)
+        self.tr_ret_data["계좌정보"] = tmp
+
+        for i in range(n):
+            tmp = {}
+            for f in stock_field:
+                data = self.kw._get_comm_data(trcode, '계좌평가현황', i, f)
+
+                try:
+                    if f in ["손익금액", "손익율"]:
+                        data = float(data)
+                    else:
+                        data = float(data[1:]) if data.startswith("-") else float(data)
+                    tmp[f] = data
+                except ValueError as e:
+                    tmp[f] = data.strip()
+            self.tr_ret_data["종목정보"].append(tmp)
+        self.tr_next = next
+        self.logger.info("[POST_OPW00004] completed")
+        # self.logger.info(self.tr_ret_data)
+
+    @init_tr_ret_data
+    def opw00018(self, rqname, account_no, account_pw, pw_gubun, gubun, screen_no):
+        """
+        계좌평가현황요청 TR
+        :param rqname str: 요청명
+        :param account_no str: 계좌번호
+        :param account_pw str: 비밀번호
+        :param pw_gubun str: 비밀번호입력매체구분 ("00")
+        :param gubun str: 조회구분 (1: 합산, 2: 개별)
+        :param screen_no str: 화면번호
+        :return:
+        """
+        self.kw._set_input_value("계좌번호", account_no)
+        self.kw._set_input_value("비밀번호", account_pw)
+        self.kw._set_input_value("비밀번호입력매체구분", pw_gubun)
+        self.kw._set_input_value("조회구분", gubun)
+        self.kw._comm_rq_data(rqname, "opw00018", "0", screen_no)  # lock event loop
+        return self.tr_ret_data
+
+    def post_opw00018(self, trcode, rqname, next):
+        data = self.kw._get_comm_data_ex(trcode, '계좌평가잔고개별합산')
+        f = ["종목번호", "종목명", "평가손익", "수익률(%)", "매입가", "전일종가", "보유수량", "매매가능수량", "현재가",
+             "전일매수수량", "전일매도수량", "금일매수수량", "금일매도수량", "매입금액", "매입수수료", "평가금액",
+             "평가수수료", "세금", "수수료합", "보유비중(%)", "신용구분", "신용구분명", "대출일"]
+        self.tr_ret_data = [zip(f, [_.strip() for _ in d]) for d in data]
+        self.tr_next = next
+
+    def post_koa_normal_buy_kp_ord(self, trcode, rqname, next):
+        """kospi stock buy order completed method
+
+        :param trcode:
+        :param rqname:
+        :param next:
+        :return:
+        """
+        self.logger.info("kospi stock buy order is completed. (rqname: {})".format(rqname))
+        self.tr_ret_data = []
+
+    def post_koa_normal_buy_kq_ord(self, trcode, rqname, next):
+        """kosdaq stock buy order completed method
+
+        :param trcode:
+        :param rqname:
+        :param next:
+        :return:
+        """
+        self.logger.info("kosdaq stock buy order is completed. (rqname: {})".format(rqname))
+        self.tr_ret_data = []
+
+    def post_koa_normal_sell_kp_ord(self, trcode, rqname, next):
+        """kospi stock sell order completed method
+
+        :param trcode:
+        :param rqname:
+        :param next:
+        :return:
+        """
+        self.logger.info("kospi stock sell order is completed. (rqname: {})".format(rqname))
+        self.tr_ret_data = []
+
+    def post_koa_normal_sell_kq_ord(self, trcode, rqname, next):
+        """kosdaq stock sell order completed method
+
+        :param trcode:
+        :param rqname:
+        :param next:
+        :return:
+        """
+        self.logger.info("kosdaq stock sell order is completed. (rqname: {})".format(rqname))
+        self.tr_ret_data = []
+
     def _on_receive_tr_data(self, screen_no, rqname, trcode, record_name, next, _1, _2, _3, _4):
         """
         Kiwoom Receive TR Callback, 서버통신 후 데이터를 받은 시점을 알려준다.
@@ -246,16 +419,25 @@ class TrManager():
         :param next: string - 연속조회유무 ('0': 남은 데이터 없음, '2': 남은 데이터 있음)
         """
         self.logger.info("(!)[Callback] _on_receive_tr_data")
+        self.logger.info("trcode : {}".format(trcode))
         try:
-            post_fn = eval('self.post_' + trcode.lower())
+            post_fn_name = 'post_' + trcode.lower()
+            print("post_fn_name: {}".format(post_fn_name))
+            post_fn = eval("self." + post_fn_name)
             # post_fn = self.tr_post.fn_table[rqname]
             post_fn(trcode, rqname, next)
         except AttributeError as e:
             self.logger.error(e)
         except Exception as e:
             self.logger.error(e)
-
+        self.logger.info("  ========================> [IMPORTANT] EVENT_LOOP -> RELEASE")
+        time.sleep(0.5)
         self.kw.evt_loop.exit()  # release event loop
+
+        # callback
+        self.logger.info("[OnReceiveTrData] Notify callback method..")
+        if (rqname, screen_no) in self.kw.notify_fn["OnReceiveTrData"]:
+            self.kw.notify_fn[(rqname, screen_no)]()
 
     def post_opt10026(self, trcode, rqname, next):
         data = self.kw._get_comm_data_ex(trcode, '고저PER')
