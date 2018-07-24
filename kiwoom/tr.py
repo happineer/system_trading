@@ -9,6 +9,7 @@ import pdb
 from collections import deque
 from collections import OrderedDict
 import time
+from pprint import pprint as pp
 import ast
 
 
@@ -34,6 +35,160 @@ class TrManager():
         self.kw._set_input_value("PER구분", per)
         self.kw._comm_rq_data(rqname, "opt10026", "0", screen_no)  # lock event loop
         return self.tr_ret_data  # data set when post_tr_function
+
+    @init_tr_ret_data
+    def opt10001(self, rqname, code, screen_no):
+        self.kw._set_input_value("종목코드", code)
+        self.kw._comm_rq_data(rqname, "opt10001", "0", screen_no)  # lock event loop
+        return self.tr_ret_data  # data set when post_tr_function
+
+    def post_opt10001(self, trcode, rqname, next):
+        fid_list_s = ["종목코드", "종목명", "결산월", "액면가", "자본금", "상장주식", "신용비율", "연중최고",
+                      "연중최저", "시가총액", "시가총액비중", "외인소진률", "대용가", "PER", "EPS", "ROE", "PBR",
+                      "EV", "BPS", "매출액", "영업이익", "당기순이익", "250최고", "250최저", "시가", "고가", "상한가",
+                      "하한가", "기준가", "예상체결가", "예상체결수량", "250최고가일", "250최고가대비율", "250최저가일",
+                      "250최저가대비율", "현재가", "대비기호", "전일대비", "등락율", "거래량", "거래대비", "액면가단위"]
+
+        tmp = {}
+        for f in fid_list_s:
+            data = self.kw._get_comm_data(trcode, '주식기본정보', 0, f)
+            tmp[f] = data
+        self.tr_ret_data = tmp
+        self.tr_next = next
+
+    @init_tr_ret_data
+    def opt10003(self, rqname, code, screen_no):
+        self.kw._set_input_value("종목코드", code)
+        self.kw._comm_rq_data(rqname, "opt10003", "0", screen_no)  # lock event loop
+        return self.tr_ret_data  # data set when post_tr_function
+
+    def post_opt10003(self, trcode, rqname, next):
+        m_data = self.kw._get_comm_data_ex(trcode, '체결정보')
+        pdb.set_trace()
+        fid_list_m = ["시간", "현재가", "전일대비", "대비율", "우선매도호가단위", "우선매수호가단위", "체결거래량",
+                      "sign", "누적거래량", "누적거래대금", "체결강도"]
+
+        for data in m_data:
+            tmp = {}
+            for i, f in enumerate(fid_list_m):
+                tmp[f] = data[i]
+            self.tr_ret_data.append(tmp)
+        self.tr_next = next
+
+    @init_tr_ret_data
+    def opt10004(self, rqname, code, screen_no):
+        self.kw._set_input_value("종목코드", code)
+        self.kw._comm_rq_data(rqname, "opt10004", "0", screen_no)  # lock event loop
+        return self.tr_ret_data  # data set when post_tr_function
+
+    def post_opt10004(self, trcode, rqname, next):
+        fid_list_s = ["호가잔량기준시간",
+                      "매도10차선잔량대비", "매도10차선잔량", "매도10차선호가",
+                      "매도9차선잔량대비", "매도9차선잔량", "매도9차선호가",
+                      "매도8차선잔량대비", "매도8차선잔량", "매도8차선호가",
+                      "매도7차선잔량대비", "매도7차선잔량", "매도7차선호가",
+                      "매도6차선잔량대비", "매도6차선잔량", "매도6차선호가",
+                      "매도5차선잔량대비", "매도5차선잔량", "매도5차선호가",
+                      "매도4차선잔량대비", "매도4차선잔량", "매도4차선호가",
+                      "매도3차선잔량대비", "매도3차선잔량", "매도3차선호가",
+                      "매도2차선잔량대비", "매도2차선잔량", "매도2차선호가",
+                      "매도1차선잔량대비", "매도최우선잔량", "매도최우선호가",
+                      "매수최우선호가", "매수최우선잔량", "매수1차선잔량대비",
+                      "매수2차선호가", "매수2차선잔량", "매수2차선잔량대비",
+                      "매수3차선호가", "매수3차선잔량", "매수3차선잔량대비",
+                      "매수4차선호가", "매수4차선잔량", "매수4차선잔량대비",
+                      "매수5차선호가", "매수5차선잔량", "매수5차선잔량대비",
+                      "매수6차선호가", "매수6차선잔량", "매수6차선잔량대비",
+                      "매수7차선호가", "매수7차선잔량", "매수7차선잔량대비",
+                      "매수8차선호가", "매수8차선잔량", "매수8차선잔량대비",
+                      "매수9차선호가", "매수9차선잔량", "매수9차선잔량대비",
+                      "매수10차선호가", "매수10차선잔량", "매수10차선잔량대비",
+                      "총매도잔량직전대비", "총매도잔량", "총매수잔량", "총매수잔량직전대비",
+                      "시간외매도잔량", "시간외매수잔량", "시간외매수잔량대비"]
+        tmp = {}
+        for f in fid_list_s:
+            data = self.kw._get_comm_data(trcode, '주식기본정보', 0, f)
+            tmp[f] = data
+        self.tr_ret_data = tmp
+        self.tr_next = next
+
+    @init_tr_ret_data
+    def opt10019(self, rqname,
+                 market, swing_gubun, time_gubun, time, vol_gubun,
+                 stock_condi, credit_condi,
+                 screen_no):
+        self.kw._set_input_value("시장구분", market)
+        self.kw._set_input_value("등락구분", swing_gubun)
+        self.kw._set_input_value("시간구분", time_gubun)
+        self.kw._set_input_value("시간", time)
+        self.kw._set_input_value("거래량구분", vol_gubun)
+        self.kw._set_input_value("종목조건", stock_condi)
+        self.kw._set_input_value("신용조건", credit_condi)
+        self.kw._comm_rq_data(rqname, "opt10019", "0", screen_no)
+
+        while self.tr_next == "2":
+            self.kw._set_input_value("시장구분", market)
+            self.kw._set_input_value("등락구분", swing_gubun)
+            self.kw._set_input_value("시간구분", time_gubun)
+            self.kw._set_input_value("시간", time)
+            self.kw._set_input_value("거래량구분", vol_gubun)
+            self.kw._set_input_value("종목조건", stock_condi)
+            self.kw._set_input_value("신용조건", credit_condi)
+            self.kw._comm_rq_data(rqname, "opt10019", "2", screen_no)
+
+        return self.tr_ret_data  # data set when post_tr_function
+
+    def post_opt10019(self, trcode, rqname, next):
+        m_data = self.kw._get_comm_data_ex(trcode, '가격급등락')
+        fid_list_m = [
+            "종목코드", "종목분류", "종목명", "전일대비기호", "전일대비",
+            "등락률", "기준가", "현재가", "기준대비", "거래량", "급등률"
+        ]
+        for data in m_data:
+            tmp = {}
+            for i, f in enumerate(fid_list_m):
+                tmp[f] = data[i]
+            self.tr_ret_data.append(tmp)
+        self.tr_next = next
+
+    @init_tr_ret_data
+    def opt10023(self, rqname,
+                 market, sort_gubun, time_gubun, vol_gubun, time,
+                 stock_condi, price_gubun,
+                 screen_no):
+        self.kw._set_input_value("시장구분", market)
+        self.kw._set_input_value("정렬구분", sort_gubun)
+        self.kw._set_input_value("시간구분", time_gubun)
+        self.kw._set_input_value("거래량구분", vol_gubun)
+        self.kw._set_input_value("시간", time)
+        self.kw._set_input_value("종목조건", stock_condi)
+        self.kw._set_input_value("가격구분", price_gubun)
+        self.kw._comm_rq_data(rqname, "opt10023", "0", screen_no)
+
+        while self.tr_next == "2":
+            self.kw._set_input_value("시장구분", market)
+            self.kw._set_input_value("정렬구분", sort_gubun)
+            self.kw._set_input_value("시간구분", time_gubun)
+            self.kw._set_input_value("거래량구분", vol_gubun)
+            self.kw._set_input_value("시간", time)
+            self.kw._set_input_value("종목조건", stock_condi)
+            self.kw._set_input_value("가격구분", price_gubun)
+            self.kw._comm_rq_data(rqname, "opt10023", "2", screen_no)
+
+        return self.tr_ret_data  # data set when post_tr_function
+
+    def post_opt10023(self, trcode, rqname, next):
+        m_data = self.kw._get_comm_data_ex(trcode, '거래량급증')
+        fid_list_m = [
+            "종목코드", "종목명", "현재가", "전일대비기호", "전일대비",
+            "등락률", "이전거래량", "현재거래량", "급증량", "급증률"
+        ]
+        for data in m_data:
+            tmp = {}
+            for i, f in enumerate(fid_list_m):
+                tmp[f] = data[i]
+            self.tr_ret_data.append(tmp)
+        self.tr_next = next
 
     @init_tr_ret_data
     def opt10080(self, rqname, code, tick, screen_no, begin_date, end_date):
@@ -234,9 +389,117 @@ class TrManager():
         self.tr_next = next
 
     @init_tr_ret_data
-    def opt10085(self, rqname, account_no, screen_no):
+    def opt20002(self, rqname, market, code, screen_no):
+        """업종별주가요청
+
+        :param rqname:
+        :param market:
+        :param code:
+        :param screen_no:
+        :return:
         """
-        계좌수익률 요청 TR
+        self.kw._set_input_value("시장구분", market)
+        self.kw._set_input_value("업종코드", code)
+        self.kw._comm_rq_data(rqname, 'opt20002', "0", screen_no)
+
+        while self.tr_next == '2':
+            self.kw._set_input_value("시장구분", market)
+            self.kw._set_input_value("업종코드", code)
+            self.kw._comm_rq_data(rqname, 'opt20002', "2", screen_no)
+
+        return self.tr_ret_data
+
+    def post_opt20002(self, trcode, rqname, next):
+        """업종별주가요청
+
+        :param trcode:
+        :param rqname:
+        :param next:
+        :return:
+        """
+        m_data = self.kw._get_comm_data_ex(trcode, '업종별주가')
+
+        fid_list_m = ["종목코드", "종목명", "현재가", "전일대비기호", "전일대비", "등락률", "현재거래량",
+                      "매도호가", "매수호가", "시가", "고가", "저가"]
+        for data in m_data:
+            tmp = {}
+            for i, f in enumerate(fid_list_m):
+                k, v = f, data[i]
+                tmp[k] = v
+            self.tr_ret_data.append(tmp)
+        self.tr_next = next
+        self.logger.info("[POST_OPT20002] completed")
+
+    @init_tr_ret_data
+    def opt20003(self, rqname, code, screen_no):
+        """전업종 지수 요청
+
+        :param rqname:
+        :param code:
+        :param screen_no:
+        :return:
+        """
+        self.kw._set_input_value("업종코드", code)
+        self.kw._comm_rq_data(rqname, 'opt20003', "0", screen_no)
+        return self.tr_ret_data
+
+    def post_opt20003(self, trcode, rqname, next):
+        """
+
+        :return:
+        """
+        m_data = self.kw._get_comm_data_ex(trcode, '전업종지수')
+
+        fid_list_m = ["종목코드", "종목명", "현재가", "대비기호", "전일대비", "등락률", "거래량", "비중", "거래대금",
+                      "상한", "상승", "보합", "하락", "하한", "상장종목수"]
+        for data in m_data:
+            tmp = {}
+            for i, f in enumerate(fid_list_m):
+                k, v = f, data[i]
+                tmp[k] = v
+            self.tr_ret_data.append(tmp)
+        self.tr_next = next
+        self.logger.info("[POST_OPT20003] completed")
+
+    @init_tr_ret_data
+    def opt10085(self, rqname, account_no, screen_no):
+        """계좌수익률 요청 TR
+        그동안 매매했던 모든 종목에 대해 현재 상황을 알려줌.
+           '메디프론': [{'결제잔고': '60',
+                     '당일매도손익': '0',
+                     '당일매매세금': '0',
+                     '당일매매수수료': '',
+                     '대출일': '00000000',
+                     '만기일': '00000000',
+                     '매입가': '7712',
+                     '매입금액': '462720',
+                     '보유수량': '60',
+                     '신용구분': '00',
+                     '신용금액': '0',
+                     '신용이자': '0',
+                     '일자': '20180723',
+                     '종목명': '메디프론',
+                     '종목코드': '065650',
+                     '청산가능수량': '60',
+                     '현재가': '-7370'}],
+           '비트컴퓨터': [{'결제잔고': '0',
+                      '당일매도손익': '0',
+                      '당일매매세금': '0',
+                      '당일매매수수료': '',
+                      '대출일': '00000000',
+                      '만기일': '00000000',
+                      '매입가': '0',
+                      '매입금액': '0',
+                      '보유수량': '0',
+                      '신용구분': '00',
+                      '신용금액': '0',
+                      '신용이자': '0',
+                      '일자': '20180723',
+                      '종목명': '비트컴퓨터',
+                      '종목코드': '032850',
+                      '청산가능수량': '0',
+                      '현재가': '+6930'}],
+
         :param rqname str: 요청명
         :param account_no str: 계좌번호
         :param screen_no str: 화면번호
@@ -247,17 +510,36 @@ class TrManager():
         return self.tr_ret_data
 
     def post_opt10085(self, trcode, rqname, next):
-        data = self.kw._get_comm_data_ex(trcode, '계좌수익률')
-        f = ["일자", "종목코드", "종목명", "현재가", "매입가", "매입금액", "보유수량",
-             "당일매도손익", "당일매매수수료", "당일매매세금", "신용구분", "대출일",
-             "결제잔고", "청산가능수량", "신용금액", "신용이자", "만기일"]
-        self.tr_ret_data = [zip(f, [_.strip() for _ in d]) for d in data]
+        # data = self.kw._get_comm_data_ex(trcode, '계좌수익률')
+        fid_list_m = ["일자", "종목코드", "종목명", "현재가", "매입가", "매입금액", "보유수량",
+                      "당일매도손익", "당일매매수수료", "당일매매세금", "신용구분", "대출일",
+                      "결제잔고", "청산가능수량", "신용금액", "신용이자", "만기일"]
+
+        self.tr_ret_data = {
+            "계좌수익률": {}
+        }
+
+        n = self.kw._get_repeat_cnt(trcode, rqname)
+        pdb.set_trace()
+        for i in range(n):
+            tmp = {}
+            for f in fid_list_m:
+                data = self.kw._get_comm_data(trcode, '계좌수익률', i, f)
+                tmp[f] = data
+            if tmp['종목명'] not in self.tr_ret_data["계좌수익률"]:
+                self.tr_ret_data["계좌수익률"][tmp['종목명']] = [tmp]
+            else:
+                self.tr_ret_data["계좌수익률"][tmp['종목명']].append(tmp)
+
         self.tr_next = next
+        self.logger.info("[POST_OPT10085] completed")
 
     @init_tr_ret_data
     def opt10077(self, rqname, account_no, account_pw, code, screen_no):
-        """
-        당일실현손익상세요청 요청 TR
+        """당일실현손익상세요청 요청 TR
+        당일 '실현손익' 관련 매매 이력이 없으면 data가 아무것도 없음.
+        매도를 통해 수익을 '실현'한 부분에 대해서 체결단위로 정보를 만들어줌.
+
         :param account_no str: 계좌번호
         :param account_pw str: 비밀번호
         :param code str: 종목코드
@@ -271,11 +553,44 @@ class TrManager():
         return self.tr_ret_data
 
     def post_opt10077(self, trcode, rqname, next):
-        data = self.kw._get_comm_data_ex(trcode, '당일실현손익상세')
-        f = ["종목명", "체결명", "매입단가", "체결가", "당일매도손익", "손익율",
-             "당일매매수수료", "당일매매세금", "종목코드"]
-        self.tr_ret_data = [zip(f, [_.strip() for _ in d]) for d in data]
+        """당일실현손익상세요청
+
+        :param trcode:
+        :param rqname:
+        :param next:
+        :return:
+        """
+        # data = self.kw._get_comm_data_ex(trcode, '당일실현손익상세')
+        n = self.kw._get_repeat_cnt(trcode, rqname)
+
+        fid_list_s = ["당일실현손익"]
+        fid_list_m = ["종목명", "체결명", "매입단가", "체결가", "당일매도손익", "손익율",
+                      "당일매매수수료", "당일매매세금", "종목코드"]
+        self.tr_ret_data = {
+            "당일실현손익": {},
+            "당일실현손익상세": {}
+        }
+
+        tmp = {}
+        for f in fid_list_s:
+            data = self.kw._get_comm_data(trcode, '당일실현손익', 0, f)
+            tmp[f] = data
+
+        self.tr_ret_data["당일실현손익"] = tmp
+
+        for i in range(n):
+            tmp = {}
+            for f in fid_list_m:
+                data = self.kw._get_comm_data(trcode, '당일실현손익상세', i, f)
+                tmp[f] = data
+            if tmp['종목명'] not in self.tr_ret_data["당일실현손익상세"]:
+                self.tr_ret_data["당일실현손익상세"][tmp['종목명']] = [tmp]
+            else:
+                self.tr_ret_data["당일실현손익상세"][tmp['종목명']].append(tmp)
+        pp(self.tr_ret_data)
         self.tr_next = next
+        self.logger.info("[POST_OPT10077] completed")
+
 
     @init_tr_ret_data
     def opw00004(self, rqname, account_no, account_pw, gubun, pw_gubun, screen_no):
@@ -337,8 +652,106 @@ class TrManager():
 
     @init_tr_ret_data
     def opw00018(self, rqname, account_no, account_pw, pw_gubun, gubun, screen_no):
-        """
-        계좌평가현황요청 TR
+        """계좌평가현황요청 TR
+
+        {'계좌평가결과': {'조회건수': '0004',
+            '총대ㅜ금액': '',
+            '총대출금': '000000000000000',
+            '총매입금액': '000000001729030',
+            '총수익율(%)': '',
+            '총융자금액': '000000000000000',
+            '총평가금액': '000000001792800',
+            '총평가손익금액': '000000000046113',
+            '추정예탁자산': '000000000953814'},
+ '계좌평가잔고개별합산': {'디딤': {'금일매도수량': '000000000000000',
+                       '금일매수수량': '000000000000000',
+                       '대출일': '',
+                       '매매가능수량': '000000000000210',
+                       '매입가': '000000000003022',
+                       '매입금액': '000000000634560',
+                       '매입수수료': '000000000002220',
+                       '보유비중(%)': '000000036.70',
+                       '보유수량': '000000000000210',
+                       '세금': '000000000002142',
+                       '수수료합': '000000000004710',
+                       '수익률(%)': '000000011.43',
+                       '신용구분': '00',
+                       '신용구분명': '',
+                       '전일매도수량': '000000000000010',
+                       '전일매수수량': '000000000000220',
+                       '전일종가': '000000003095',
+                       '종목명': '디딤',
+                       '평가금액': '000000000714000',
+                       '평가손익': '000000000072528',
+                       '평가수수료': '000000000002490',
+                       '현재가': '000000003400'},
+                '메디프론': {'금일매도수량': '000000000000000',
+                         '금일매수수량': '000000000000000',
+                         '대출일': '',
+                         '매매가능수량': '000000000000060',
+                         '매입가': '000000000007712',
+                         '매입금액': '000000000462720',
+                         '매입수수료': '000000000001610',
+                         '보유비중(%)': '000000026.76',
+                         '보유수량': '000000000000060',
+                         '세금': '000000000001357',
+                         '수수료합': '000000000003190',
+                         '수익률(%)': '-00000003.21',
+                         '신용구분': '00',
+                         '신용구분명': '',
+                         '전일매도수량': '000000000000130',
+                         '전일매수수량': '000000000000190',
+                         '전일종가': '000000007880',
+                         '종목명': '메디프론',
+                         '평가금액': '000000000452400',
+                         '평가손익': '-00000000014867',
+                         '평가수수료': '000000000001580',
+                         '현재가': '000000007540'},
+                '캐스텍코리아': {'금일매도수량': '000000000000000',
+                           '금일매수수량': '000000000000000',
+                           '대출일': '',
+                           '매매가능수량': '000000000000090',
+                           '매입가': '000000000006553',
+                           '매입금액': '000000000589800',
+                           '매입수수료': '000000000002060',
+                           '보유비중(%)': '000000034.11',
+                           '보유수량': '000000000000090',
+                           '세금': '000000000001752',
+                           '수수료합': '000000000004100',
+                           '수익률(%)': '-00000001.95',
+                           '신용구분': '00',
+                           '신용구분명': '',
+                           '전일매도수량': '000000000000000',
+                           '전일매수수량': '000000000000090',
+                           '전일종가': '000000006300',
+                           '종목명': '캐스텍코리아',
+                           '평가금액': '000000000584100',
+                           '평가손익': '-00000000011522',
+                           '평가수수료': '000000000002040',
+                           '현재가': '000000006490'},
+                '팬스타엔터프라이': {'금일매도수량': '000000000000000',
+                             '금일매수수량': '000000000000000',
+                             '대출일': '',
+                             '매매가능수량': '000000000000030',
+                             '매입가': '000000000001398',
+                             '매입금액': '000000000041950',
+                             '매입수수료': '000000000000140',
+                             '보유비중(%)': '000000002.43',
+                             '보유수량': '000000000000030',
+                             '세금': '000000000000126',
+                             '수수료합': '000000000000280',
+                             '수익률(%)': '-00000000.11',
+                             '신용구분': '00',
+                             '신용구분명': '',
+                             '전일매도수량': '000000000000000',
+                             '전일매수수량': '000000000000010',
+                             '전일종가': '000000001445',
+                             '종목명': '팬스타엔터프라이',
+                             '평가금액': '000000000042300',
+                             '평가손익': '-00000000000046',
+                             '평가수수료': '000000000000140',
+                             '현재가': '000000001410'}}}
+
         :param rqname str: 요청명
         :param account_no str: 계좌번호
         :param account_pw str: 비밀번호
@@ -355,12 +768,42 @@ class TrManager():
         return self.tr_ret_data
 
     def post_opw00018(self, trcode, rqname, next):
-        data = self.kw._get_comm_data_ex(trcode, '계좌평가잔고개별합산')
-        f = ["종목번호", "종목명", "평가손익", "수익률(%)", "매입가", "전일종가", "보유수량", "매매가능수량", "현재가",
-             "전일매수수량", "전일매도수량", "금일매수수량", "금일매도수량", "매입금액", "매입수수료", "평가금액",
-             "평가수수료", "세금", "수수료합", "보유비중(%)", "신용구분", "신용구분명", "대출일"]
-        self.tr_ret_data = [zip(f, [_.strip() for _ in d]) for d in data]
+        # data = self.kw._get_comm_data_ex(trcode, '계좌평가잔고개별합산')
+
+        n = self.kw._get_repeat_cnt(trcode, rqname)
+        self.tr_ret_data = {}
+
+        fid_list1 = ["총매입금액", "총평가금액", "총평가손익금액", "총수익율(%)", "추정예탁자산", "총대출금",
+                     "총융자금액", "총대주금액", "조회건수"]
+
+        fid_list2 = ["종목명", "평가손익", "수익률(%)", "매입가", "전일종가", "보유수량", "매매가능수량", "현재가", "전일매수수량",
+                     "전일매도수량", "금일매수수량", "금일매도수량", "매입금액", "매입수수료", "평가금액", "평가수수료", "세금",
+                     "수수료합", "보유비중(%)", "신용구분", "신용구분명", "대출일"]
+
+        n = self.kw._get_repeat_cnt(trcode, rqname)
+        result = {
+            '계좌평가결과': {},
+            '계좌평가잔고개별합산': {}
+        }
+
+        tmp1 = {}
+        for f in fid_list1:
+            data = self.kw._get_comm_data(trcode, '계좌평가결과', 0, f)
+            tmp1[f] = data
+        result['계좌평가결과'] = tmp1
+
+
+        for n in range(n):
+            tmp2 = {}
+            for f in fid_list2:
+                data = self.kw._get_comm_data(trcode, '계좌평가잔고개별합산', n, f)
+                tmp2[f] = data
+            result['계좌평가잔고개별합산'][tmp2['종목명']] = tmp2
+
+        self.tr_ret_data = result
+        pdb.set_trace()
         self.tr_next = next
+        self.logger.info("[POST_OPW00018] completed")
 
     def post_koa_normal_buy_kp_ord(self, trcode, rqname, next):
         """kospi stock buy order completed method
@@ -501,7 +944,13 @@ class TrController(object):
         self.queue_size = 1000
         self.queue = deque(maxlen=self.queue_size)
         self.now = datetime.now()
-        self.req_limit_setting = [(5, 2, 1), (100, 70, 20), (200, 150, 20), (700, 600, 30)]  # count, time, delay
+        # count, time(sec), delay(sec)
+        self.req_limit_setting = [
+            (5, 2, 1),
+            (100, 70, 20),
+            (200, 150, 20),
+            (700, 600, 30)
+        ]
         self.queue += [self.now] * self.queue_size
 
     def prevent_excessive_request(self):

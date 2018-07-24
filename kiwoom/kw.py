@@ -41,7 +41,7 @@ class Kiwoom(QAxWidget):
         self.notify_fn = {
             "OnEventConnect": {},
             "OnReceiveTrData": {},
-            "OnReceiveRealData": {},
+            "OnReceiveRealData": [],
             "OnReceiveRealCondition": [],
             "OnReceiveTrCondition": {},
             "OnReceiveConditionVer": {},
@@ -70,7 +70,7 @@ class Kiwoom(QAxWidget):
         :return:
         """
         self.ret_data = err_code
-        self.logger.info("  ==================> [IMPORTANT] EVENT_LOOP <- RELEASE")
+        self.logger.debug("  ==================> [IMPORTANT] EVENT_LOOP <- RELEASE")
         time.sleep(0.5)
         self.evt_loop.exit()  # release event loop
 
@@ -87,30 +87,36 @@ class Kiwoom(QAxWidget):
         self.logger.info("real_type: {}".format(real_type))
         self.logger.info("real_data: {}".format(real_data))
 
-        with open(real_type + ".txt", "a") as f:
-            f.write(real_data + "\n")
+        # callback
+        self.logger.info("[OnReceiveRealData] Notify Callback methods..")
+        self.notify_callback('OnReceiveRealData', real_data)
 
-        fid_data = {
-            '주식시세': {
-                10: '현재가',
-                11: '전일대비',
-                12: '등락율',
-                27: '최우선매도호가',
-                28: '최우선매수호가',
-                13: '누적거래량',
-                14: '누적거래대금',
-                16: '시가',
-                17: '고가',
-                18: '저가',
-                25: '전일대비기호',
-                26: '전일거래량대비',
-                29: '거래대금증감',
-                30: '거일거래량대비',
-                31: '거래회전율',
-                32: '거래비용',
-                311: '시가총액(억)'
-            }
-        }
+
+        #
+        # with open(real_type + ".txt", "a") as f:
+        #     f.write(real_data + "\n")
+        #
+        # fid_data = {
+        #     '주식시세': {
+        #         10: '현재가',
+        #         11: '전일대비',
+        #         12: '등락율',
+        #         27: '최우선매도호가',
+        #         28: '최우선매수호가',
+        #         13: '누적거래량',
+        #         14: '누적거래대금',
+        #         16: '시가',
+        #         17: '고가',
+        #         18: '저가',
+        #         25: '전일대비기호',
+        #         26: '전일거래량대비',
+        #         29: '거래대금증감',
+        #         30: '거일거래량대비',
+        #         31: '거래회전율',
+        #         32: '거래비용',
+        #         311: '시가총액(억)'
+        #     }
+        # }
         """
         result = []
         for fid in fid_data[real_type]:
@@ -120,8 +126,6 @@ class Kiwoom(QAxWidget):
             
         return result
         """
-
-
 
     def _on_receive_real_condition(self, code, event_type, condi_name, condi_index):
         """
@@ -153,8 +157,7 @@ class Kiwoom(QAxWidget):
 
             # callback
             self.logger.info("[OnReceiveRealCondition] Notify Callback methods..")
-            for fn in self.notify_fn['OnReceiveRealCondition']:
-                fn(dict(data))
+            self.notify_callback('OnReceiveRealCondition', dict(data))
 
         except Exception as e:
             print("_on_receive_real_condition Error")
@@ -189,13 +192,12 @@ class Kiwoom(QAxWidget):
                 self.logger.info("{0}: {1}".format(key, d[1]))
             self.logger.info("-" * max_char_cnt)
             self.condition_search_result = code_list.strip(";").split(";")
-            self.logger.info("  ==================> [IMPORTANT] EVENT_LOOP <- RELEASE")
+            self.logger.debug("  ==================> [IMPORTANT] EVENT_LOOP <- RELEASE")
             time.sleep(0.5)
             self.evt_loop.exit()  # lock event
 
             # callback
-            if screen_no in self.notify_fn["OnReceiveTrCondition"]:
-                self.notify_fn["OnReceiveTrCondition"][screen_no](dict(data))
+            self.notify_callback('OnReceiveTrCondition', dict(data), key=screen_no)
 
         except Exception as e:
             self.logger.error(e)
@@ -205,7 +207,7 @@ class Kiwoom(QAxWidget):
             self.logger.error("condi_index:".format(condi_index))
             self.logger.error("next:".format(next))
         finally:
-            self.logger.info("  ==================> [IMPORTANT] EVENT_LOOP <- RELEASE")
+            self.logger.debug("  ==================> [IMPORTANT] EVENT_LOOP <- RELEASE")
             time.sleep(0.5)
             self.evt_loop.exit()  # lock event
 
@@ -228,13 +230,13 @@ class Kiwoom(QAxWidget):
             for condition_info in condi_name_list.split(";")[:-1]:
                 condi_index, condi_name = condition_info.split("^")
                 self.condition[condi_name] = condi_index
-            self.logger.info("  ==================> [IMPORTANT] EVENT_LOOP <- RELEASE")
+            self.logger.debug("  ==================> [IMPORTANT] EVENT_LOOP <- RELEASE")
             time.sleep(0.5)
             self.evt_loop.exit()
         except Exception as e:
             self.logger.error("_on_receive_condition_ver")
         finally:
-            self.logger.info("  ==================> [IMPORTANT] EVENT_LOOP <- RELEASE")
+            self.logger.debug("  ==================> [IMPORTANT] EVENT_LOOP <- RELEASE")
             time.sleep(0.5)
             self.evt_loop.exit()
 
@@ -265,8 +267,7 @@ class Kiwoom(QAxWidget):
 
             # callback
             self.logger.info("[OnReceiveChejanData] Notify callback method..")
-            for fn in self.notify_fn["OnReceiveChejanData"]:
-                fn(data)
+            self.notify_callback('OnReceiveChejanData', data)
 
         except Exception as e:
             self.logger.error("[Error] {}".format(e))
@@ -303,7 +304,7 @@ class Kiwoom(QAxWidget):
         :return: int - 0:로그인 성공, 음수:로그인 실패
         """
         self.dynamicCall("CommConnect()")
-        self.logger.info("  ==================> [IMPORTANT] EVENT_LOOP -> LOCK")
+        self.logger.debug("  ==================> [IMPORTANT] EVENT_LOOP -> LOCK")
         time.sleep(0.5)
         self.evt_loop.exec_()
         return self.ret_data
@@ -425,7 +426,7 @@ class Kiwoom(QAxWidget):
         ret = self.dynamicCall("GetConditionLoad()")
         if ret != 1:
             return False
-        self.logger.info("  ==================> [IMPORTANT] EVENT_LOOP -> LOCK")
+        self.logger.debug("  ==================> [IMPORTANT] EVENT_LOOP -> LOCK")
         time.sleep(0.5)
         self.evt_loop.exec_()
         return self.condition
@@ -475,7 +476,7 @@ class Kiwoom(QAxWidget):
                                    screen_no, condi_name, condi_index, search_type)
             if ret == 0:
                 raise constant.KiwoomProcessingError("sendCondition(): 조건검색 요청 실패")
-            self.logger.info("  ==================> [IMPORTANT] EVENT_LOOP -> LOCK")
+            self.logger.debug("  ==================> [IMPORTANT] EVENT_LOOP -> LOCK")
             time.sleep(0.5)
             self.evt_loop.exec_()  # lock event
 
@@ -502,6 +503,87 @@ class Kiwoom(QAxWidget):
         :return:
         """
         self.ret_data = self.tr_mgr.opt10026('고저PER', per_condi, "1111")
+        return self.ret_data
+
+    def get_basic_info(self, code, screen_no):
+        """주식기본정보요청(opt10001)
+
+        :param code:
+        :param screen_no:
+        :return:
+        """
+        self.ret_data = self.tr_mgr.opt10001("주식기본정보요청", code, screen_no)
+        return self.ret_data
+
+    def get_chegyul_info(self, code, screen_no):
+        """체결정보요청
+
+        :param code:
+        :param screen_no:
+        :return:
+        """
+        self.ret_data = self.tr_mgr.opt10003("체결정보요청", code, screen_no)
+        return self.ret_data
+
+    def get_hoga_info(self, code, screen_no):
+        """주식호가요청(opt10004)
+
+        :param code:
+        :param screen_no:
+        :return:
+        """
+        self.ret_data = self.tr_mgr.opt10004("주식호가요청", code, screen_no)
+        return self.ret_data
+
+    def rapidly_swing_price_stock(self,
+                                  market, swing_gubun, time_gubun, time,
+                                  vol_gubun, stock_condi, credit_condi, screen_no):
+        """가격급등락 요청
+
+        :param market:
+        :param swing_gubun:
+        :param time_gubun:
+        :param time:
+        :param vol_gubun:
+        :param stock_condi:
+        :param credit_condi:
+        :return:
+        """
+        self.ret_data = self.tr_mgr.opt10019("가격급등락요청",
+                                             market,
+                                             swing_gubun,
+                                             time_gubun,
+                                             time,
+                                             vol_gubun,
+                                             stock_condi,
+                                             credit_condi,
+                                             screen_no)
+        return self.ret_data
+
+    def rapidly_rising_vol_stock(self,
+                                 market, sort_gubun, time_gubun, vol_gubun,
+                                 time, stock_condi, price_gubun, screen_no):
+        """거래량 급증 요청
+
+        :param market:
+        :param sort_gubun:
+        :param time_gubun:
+        :param vol_gubun:
+        :param time:
+        :param code_condi:
+        :param price_gubun:
+        :param screen_no:
+        :return:
+        """
+        self.ret_data = self.tr_mgr.opt10023("거래량급증요청",
+                                             market,
+                                             sort_gubun,
+                                             time_gubun,
+                                             vol_gubun,
+                                             time,
+                                             stock_condi,
+                                             price_gubun,
+                                             screen_no)
         return self.ret_data
 
     @avoid_server_check_time
@@ -593,9 +675,44 @@ class Kiwoom(QAxWidget):
             time.sleep(0.2)  # delay
         return self.ret_data
 
-    def 계좌수익률요청(self, rqname, account_no, screen_no):
+
+    def job_categ_price(self, market, code, screen_no):
         """
-        계좌수익률요청 TR
+
+        :param market:
+        :param code:
+        :return:
+        """
+        if market == "kospi":
+            market = "0"
+        elif market == "kosdaq":
+            market = "1"
+        else:  # kospi200
+            market = "2"
+
+        self.ret_data = []
+        self.ret_data = self.tr_mgr.opt20002('업종별주가요청', market, code, screen_no)
+        time.sleep(0.2)  # delay
+        return self.ret_data
+
+
+    @avoid_server_check_time
+    @common.type_check
+    def job_categ_index(self, code: str, screen_no: str):
+        """
+
+        :return:
+        """
+        self.ret_data = []
+        self.ret_data = self.tr_mgr.opt20003('전업종지수요청', code, screen_no)
+        time.sleep(0.2)  # delay
+        return self.ret_data
+
+    # def job_categ_index_by_min(self):
+
+    def 계좌수익률요청(self, rqname, account_no, screen_no):
+        """계좌수익률요청 TR
+
         :param rqname: 요청명
         :param account_no: 계좌번호
         :param screen_no: 화면번호
@@ -605,8 +722,8 @@ class Kiwoom(QAxWidget):
         return ret
 
     def 당일실현손익상세요청(self, rqname, account_no, account_pw, code, screen_no):
-        """
-        당일실현손익상세요청 TR
+        """당일실현손익상세요청 TR
+
         :param rqname str: 요청명
         :param account_no str: 계좌번호
         :param account_pw str: 계좌번호 비밀번호
@@ -618,8 +735,8 @@ class Kiwoom(QAxWidget):
         return ret
 
     def 계좌평가현황요청(self, rqname, account_no, account_pw, gubun, screen_no):
-        """
-        당일실현손익상세요청 TR
+        """계좌평가현황요청 TR
+
         :param rqname str: 요청명
         :param account_no str: 계좌번호
         :param account_pw str: 계좌번호 비밀번호(모투에서는 공백 "")
@@ -631,8 +748,8 @@ class Kiwoom(QAxWidget):
         return ret
 
     def 계좌평가잔고내역요청(self, rqname, account_no, account_pw, gubun, screen_no):
-        """
-        당일실현손익상세요청 TR
+        """계좌평가잔고내역요청 TR
+
         :param rqname str: 요청명
         :param account_no str: 계좌번호
         :param account_pw str: 계좌번호 비밀번호
@@ -804,14 +921,36 @@ class Kiwoom(QAxWidget):
         return ret
 
     def reg_callback(self, event, key, fn):
+        """특정 이벤트 발생시 호출한 callback 함수를 등록한다.
+
+        :param event:
+        :param key: 일반적으로 screen_no 를 사용하면 된다.
+        :param fn:
+        :return:
+        """
         if event in ["OnReceiveTrCondition", "OnReceiveTrData"]:
             self.notify_fn[event][key] = fn
-        else:  # OnReceiveRealCondition, OnReceiveChejanData
+        else:  # OnReceiveRealCondition, OnReceiveChejanData, OnReceiveRealData
             if fn not in self.notify_fn[event]:
                 self.notify_fn[event].append(fn)
 
-    def get_curr_price(self, code):
+    def notify_callback(self, event, data, key=None):
+        """특정 이벤트로 등록한 callback 함수를 호출한다.
+
+        :param event:
+        :param data:
+        :param key: 일반적으로 screen_no 를 사용하면 된다.
+        :return:
         """
+        if event in ["OnReceiveTrCondition", "OnReceiveTrData"]:
+            self.notify_fn[event][key](data)
+        else:  # OnReceiveRealCondition, OnReceiveChejanData, OnReceiveRealData
+            for fn in self.notify_fn[event]:
+                fn(data)
+
+
+    def get_curr_price(self, code):
+        """특정종목의 현재 주식가격을 구해서 return 한다.
 
         :param code:
         :return:
@@ -873,7 +1012,7 @@ class Kiwoom(QAxWidget):
         time.sleep(0.2)  # avoid over request
 
         # when receive data, invoke self._on_receive_tr_data
-        self.logger.info("  ==================> [IMPORTANT] EVENT_LOOP -> LOCK")
+        self.logger.debug("  ==================> [IMPORTANT] EVENT_LOOP -> LOCK")
         time.sleep(0.5)
         self.evt_loop.exec_()
         return ret_code
@@ -891,7 +1030,7 @@ class Kiwoom(QAxWidget):
         code_cnt = len(code_list.strip(";").split(";"))
         ret_code = self.dynamicCall("CommKwRqData(QString, int, int, int, QString, QString)",
                                     code_list, next, code_cnt, type_flag, rqname, screen_no)
-        self.logger.info("  ==================> [IMPORTANT] EVENT_LOOP -> LOCK")
+        self.logger.debug("  ==================> [IMPORTANT] EVENT_LOOP -> LOCK")
         time.sleep(0.5)
         self.evt_loop.exec_()
         return ret_code
@@ -944,6 +1083,7 @@ class Chejan(object):
         911: '체결량',
         10: '현재가',
         11: '전일대비',
+        12: '등락율',
         25: '전일대비기호',
         27: '(최우선)매도호가',
         28: '(최우선)매수호가',
