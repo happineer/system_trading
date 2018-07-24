@@ -42,7 +42,7 @@ class TopTrader(QMainWindow, ui):
         super().__init__()
         # self.setupUi(self)  # load app screen
         duration = sys.argv[1]
-        self.logger = TTlog(logger_name="TT"+duration)
+        self.logger = TTlog(logger_name="TT"+duration).logger
         self.mongo = MongoClient()
         self.tt_db = self.mongo.TopTrader
         self.slack = Slacker(config_manager.get_slack_token())

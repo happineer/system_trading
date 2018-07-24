@@ -1,17 +1,12 @@
-import pymongo
+
 from pymongo import MongoClient
-from singleton_decorator import singleton
+from datetime import datetime
 
 
-@singleton
-class DBM():
-    def __init__(self, db):
-        """DBM 생성자, dbname을 인자로 받는다.
-
-        :param str db: database name
-        """
+class DBM(object):
+    def __init__(self):
         self.mongo = MongoClient()
-        self.db = self.mongo.get_database(db)
+        self.db = self.mongo.TopTrader
 
     def get_unique_data(self, col, query=None):
         """collection의 특정 필드값을 unique 하게 얻고 싶을때 사용
@@ -29,3 +24,12 @@ class DBM():
         else:
             cur = self.db.trading_history.distinct(col)
         return cur
+
+
+def main():
+    dbm = DBM()
+    # dbm.get_unique_data("stock_name", {'date': {'$gt': datetime(2018, 7, 20, 13, 0, 0)}})
+
+
+if __name__ == "__main__":
+    main()

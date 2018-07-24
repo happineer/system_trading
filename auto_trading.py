@@ -37,27 +37,28 @@ ui = uic.loadUiType(config_manager.MAIN_UI_PATH)[0]
 class TopTrader(QMainWindow, ui):
     def __init__(self):
         super().__init__()
-        self.tt_logger = TTlog().logger
+        self.logger = TTlog().logger
         self.mongo = MongoClient()
         self.tt_db = self.mongo.TopTrader
         self.slack = Slacker(config_manager.SLACK_TOKEN)
         self.kw = Kiwoom()
+        self.init_trading()
+        self.auto_trading()
+
+
+    def init_trading(self):
         self.login()
         # self.update_stock_info()
         self.load_stock_info()
         self.set_account()
-        self.auto_trading()
-        print("TopTrader 자동매매 시작합니다...")
-        self.timer = None
-        self.start_timer()
 
     def login(self):
         # Login
         err_code = self.kw.login()
         if err_code != 0:
-            self.tt_logger.error("Login Fail")
+            self.logger.error("Login Fail")
             exit(-1)
-        self.tt_logger.info("Login success")
+        self.logger.info("Login success")
 
     def load_stock_info(self):
         self.stock_dict = {}
@@ -65,7 +66,7 @@ class TopTrader(QMainWindow, ui):
         for d in doc:
             code = d["code"]
             self.stock_dict[code] = d
-        print("loading stock_information completed.")
+        self.logger.info("loading stock_information completed.")
 
     def update_stock_info(self):
         # kospi
@@ -87,7 +88,7 @@ class TopTrader(QMainWindow, ui):
     def set_account(self):
         self.acc_no = self.kw.get_login_info("ACCNO")
         self.acc_no = self.acc_no.strip(";")  # 계좌 1개를 가정함.
-        self.stock_account = self.account_stat(self.acc_no)
+        self.stock_account = self.get_account_info(self.acc_no)
 
         # kiwoom default account setting
         self.kw.set_account(self.acc_no)
@@ -97,37 +98,34 @@ class TopTrader(QMainWindow, ui):
             self.timer.stop()
             self.timer.deleteLater()
         self.timer = QTimer()
-        self.timer.timeout.connect(self.sell)
+        self.timer.timeout.connect(self.check_stocks_to_sell)
         # self.timer.setSingleShot(True)
         self.timer.start(30000) # 30 sec interval
 
-    def sell(self):
-        print("[Timer Interrupt] 30 second")
-        self.stock_account = self.account_stat(self.acc_no)
+    def check_stocks_to_sell(self):
+        self.logger.info("[Timer Interrupt] 30 second")
+        self.stock_account = self.get_account_info(self.acc_no)
         curr_time = datetime.today()
-        print("=" * 50)
-        print("현재 계좌 현황입니다...")
+        self.logger.info("=" * 50)
+        self.logger.info("현재 계좌 현황입니다...")
 
         if not bool(self.stock_account):
-            self.tt_logger.error("계좌정보를 제대로 받아오지 못했습니다.")
+            self.logger.error("계좌정보를 제대로 받아오지 못했습니다.")
             return
 
         for data in self.stock_account["종목정보"]:
             code, stock_name, quantity = data["종목코드"][1:], data["종목명"], int(data["보유수량"])
-            print("* 종목: {}, 손익율: {}%, 보유수량: {}, 평가금액: {}원".format(
+            self.logger.info("* 종목: {}, 손익율: {}%, 보유수량: {}, 평가금액: {}원".format(
                 data["종목명"], ("%.2f" % data["손익율"]), int(data["보유수량"]), format(int(data["평가금액"]), ',')
             ))
-
-            if data["손익율"] > 3.0 or data["손익율"] < -2.0:
-                if data["손익율"] > 0:
-                    print("시장가로 물량 전부 익절합니다. ^^    [{}:{}, {}주]".format(stock_name, code, quantity))
+            손익율 = data["손익율"]
+            if 손익율 >= 3.0 or 손익율 <= -2.0:
+                if 손익율 > 0:
+                    self.logger.info("시장가로 물량 전부 익절합니다. ^^    [{}:{}, {}주]".format(stock_name, code, quantity))
                 else:
-                    print("시장가로 물량 전부 손절합니다. ㅜㅜ. [{}:{}, {}주]".format(stock_name, code, quantity))
-
-                # self.kw.reg_callback("OnReceiveChejanData", ("시장가매도", "5001"), self.account_stat)
+                    self.logger.info("시장가로 물량 전부 손절합니다. ㅜㅜ. [{}:{}, {}주]".format(stock_name, code, quantity))
 
                 self.kw.시장가_신규매도(code, quantity)
-                # self.kw.send_order("시장가매도", "5001", self.acc_no, 2, code, quantity, 0, "03", "")
                 self.tt_db.trading_history.insert({
                     'date': curr_time,
                     'code': code,
@@ -136,14 +134,14 @@ class TopTrader(QMainWindow, ui):
                     'event': '',
                     'condi_name': '',
                     'trade': 'sell',
-                    'profit': data["손익율"],
+                    'profit': 손익율,
                     'quantity': quantity,
                     'hoga_gubun': '시장가',
                     'account_no': self.acc_no
                 })
 
-    def account_stat(self, acc_no):
-        self.tt_logger.info("계좌평가현황요청")
+    def get_account_info(self, acc_no):
+        self.logger.info("계좌평가현황요청")
         return self.kw.계좌평가현황요청("계좌평가현황요청", acc_no, "", "1", "6001")
 
     def search_condi(self, event_data):
@@ -172,7 +170,9 @@ class TopTrader(QMainWindow, ui):
         })
 
         if event_data["event_type"] == "I":
-            if self.stock_account["계좌정보"]["예수금"] < 100000:  # 잔고가 10만원 미만이면 매수 안함
+            예수금 = self.stock_account["계좌정보"]["예수금"]
+            if 예수금 < 100000:  # 잔고가 10만원 미만이면 매수 안함
+                self.logger.info("예수금({}) 부족으로 추가 매수하지 않습니다.".format(예수금))
                 return
             # curr_price = self.kw.get_curr_price(event_data["code"])
             # quantity = int(100000/curr_price)
@@ -192,7 +192,7 @@ class TopTrader(QMainWindow, ui):
                 'hoga_gubun': '시장가',
                 'account_no': self.acc_no
             })
-            self.tt_logger.info("{}:{}를 {}주 시장가_신규매수합니다.".format(stock_name, event_data["code"], quantity))
+            self.logger.info("{}:{}를 {}주 시장가_신규매수합니다.".format(stock_name, event_data["code"], quantity))
             self.kw.시장가_신규매수(event_data["code"], quantity)
             # self.kw.send_order("조건식매수", "5000", self.acc_no, 1, event_data["code"], quantity, 0, "03", "")
 
@@ -202,6 +202,11 @@ class TopTrader(QMainWindow, ui):
 
         :return:
         """
+        self.logger.info("TopTrader 자동매매 시작합니다...")
+
+        self.timer = None
+        self.start_timer()
+
         # callback fn 등록
         self.kw.reg_callback("OnReceiveRealCondition", "", self.search_condi)
         # self.kw.notify_fn["OnReceiveRealCondition"] = self.search_condi
