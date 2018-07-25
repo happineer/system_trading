@@ -45,6 +45,18 @@ class KiwoomServerCheckTimeError(Exception):
         return self.msg
 
 
+class MarketNameError(Exception):
+    """Market 명(kospi, kosdaq)을 잘못 명시한 경우
+
+    """
+    def __init__(self, error_code):
+        self.error_code = error_code
+        self.msg = "[MarketNameError] ErrorCode: %s" % error_code
+
+    def __str__(self):
+        return self.msg
+
+
 FILTER_KEYWORD = ["KODEX", "TIGER", "KINDEX", "ETN", "KOSEF", "ARIRANG", "KBSTAR",
                   "선물", "TREX", "SMART", "FOCUS", "HANARO", "ATM"]
 
