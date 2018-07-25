@@ -363,6 +363,39 @@ class Kiwoom(QAxWidget):
         """
         return self.dynamicCall("GetLoginInfo(QString)", ["GetServerGubun"])
 
+    def get_stock_basic_info(self, market=None):
+        """주식 기본정보를 dict 형태로 return한다.
+
+            stock_info = {
+                "066570": {
+                    "stock_name": "LG전자",
+                    "market": "kospi"
+                }
+            }
+
+        :param str market: kospi, kosdaq, all(=None)
+        :return: stock_info
+        """
+        if market not in ['kospi', 'kosdaq', 'all', None]:
+            self.logger.error("market should be one of ['kospi', 'kosdaq', 'all', None]")
+            exit(-1)
+
+        stock_info = {}
+        if market in ['all', None]:
+            market_list = ['kospi', 'kosdaq']
+        else:
+            market_list = [market]
+
+        for market in market_list:
+            code_list = self.get_code_list_by_market(market)
+            for code in code_list:
+                stock_info[code] = {
+                    "stock_name": self.get_master_stock_name(code),
+                    "market": market
+                }
+
+        return stock_info
+
     def get_master_stock_name(self, code):
         """
         종목코드에 해당하는 종목명을 return 한다.
@@ -397,13 +430,28 @@ class Kiwoom(QAxWidget):
         return code_list
 
     def get_code_list_by_market(self, market):
-        """
-        kospi, kosdaq 시장별 주식종목 리스트를 반환한다.
-        :param market str: 0:kospi, 10:kosdaq
-        :return: code_list list: [code_name1:str, code_name2:str, ..., code_nameN:str]
+        """kospi, kosdaq 시장별 주식종목 리스트를 반환한다.
+
+        :param str market: 0:kospi, 10:kosdaq, kospi, kosdaq
+        :return: list code_list: [code_name1:str, code_name2:str, ..., code_nameN:str]
         """
         if isinstance(market, int):
+            if market not in [0, 10]:
+                self.logger.error("market attribute is the one of 'kospi', 'kosdaq', '0', '10', 0, 10")
+                raise constant.MarketNameError('Stock Market Value Format Error')
             market = str(market)
+        elif isinstance(market, str):
+            if market not in ['kospi', 'kosdaq', '0', '10']:
+                self.logger.error("market attribute is the one of 'kospi', 'kosdaq', '0', '10', 0, 10")
+                raise constant.MarketNameError('Stock Market Value Format Error')
+            if market == 'kospi':
+                market = '0'
+            elif market == 'kosdaq':
+                market = '10'
+        else:
+            self.logger.error("market attribute is the one of 'kospi', 'kosdaq', '0', '10', 0, 10")
+            raise constant.MarketNameError('Stock Market Value Format Error')
+
         code_list = self.dynamicCall("GetCodeListByMarket(QString)", market)
         code_list = code_list.strip(';').split(';')
         return code_list
@@ -947,7 +995,6 @@ class Kiwoom(QAxWidget):
         else:  # OnReceiveRealCondition, OnReceiveChejanData, OnReceiveRealData
             for fn in self.notify_fn[event]:
                 fn(data)
-
 
     def get_curr_price(self, code):
         """특정종목의 현재 주식가격을 구해서 return 한다.
