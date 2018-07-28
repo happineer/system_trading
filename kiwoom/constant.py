@@ -56,10 +56,9 @@ class MarketNameError(Exception):
     def __str__(self):
         return self.msg
 
-
-FILTER_KEYWORD = ["KODEX", "TIGER", "KINDEX", "ETN", "KOSEF", "ARIRANG", "KBSTAR",
-                  "선물", "TREX", "SMART", "FOCUS", "HANARO", "ATM"]
-
+# market const
+KOSPI="0"
+KOSDAQ="10"
 
 class ReturnCode(object):
     """ 키움 OpenApi+ 함수들이 반환하는 값 """
@@ -942,7 +941,6 @@ class RealType(object):
         "215": "장운영구분",
         "216": "투자자별ticker"
     }
-
 
 
 # 업종코드

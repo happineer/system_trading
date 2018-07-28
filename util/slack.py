@@ -16,5 +16,5 @@ class TTSlack(object):
         :param channel:
         :return:
         """
-        msg = "[{t}]{msg}".format(t=timeutil.get_time(), msg=msg)
+        msg = "[{t}]{msg}".format(t=timeutil.get_time_str(), msg=msg)
         self.slack.chat.post_message(channel, msg)
