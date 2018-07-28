@@ -363,7 +363,12 @@ class Kiwoom(QAxWidget):
         """
         return self.dynamicCall("GetLoginInfo(QString)", ["GetServerGubun"])
 
-    def get_stock_basic_info(self, market=None):
+    def is_valid_market(self, market):
+        if market in [constant.KOSPI, constant.KOSDAQ]:
+            return True
+        return False
+
+    def get_stock_basic_info(self, market=[constant.KOSPI, constant.KOSDAQ]):
         """주식 기본정보를 dict 형태로 return한다.
 
             stock_info = {
@@ -373,25 +378,23 @@ class Kiwoom(QAxWidget):
                 }
             }
 
-        :param str market: kospi, kosdaq, all(=None)
+        :param str market: constant.KOSPI, constant.KOSDAQ
         :return: stock_info
         """
-        if market not in ['kospi', 'kosdaq', 'all', None]:
-            self.logger.error("market should be one of ['kospi', 'kosdaq', 'all', None]")
-            exit(-1)
+        if isinstance(market, str):
+            market = [market]
+
+        if not all([self.is_valid_market(m) for m in market]):
+            err_msg = "market should be kiwoom.constant.KOSPI, kiwoom.constant.KOSDAQ"
+            raise constant.MarketNameError(err_msg)
 
         stock_info = {}
-        if market in ['all', None]:
-            market_list = ['kospi', 'kosdaq']
-        else:
-            market_list = [market]
-
-        for market in market_list:
-            code_list = self.get_code_list_by_market(market)
+        for m in market:
+            code_list = self.get_code_list_by_market(m)
             for code in code_list:
                 stock_info[code] = {
                     "stock_name": self.get_master_stock_name(code),
-                    "market": market
+                    "market": m
                 }
 
         return stock_info
@@ -432,25 +435,11 @@ class Kiwoom(QAxWidget):
     def get_code_list_by_market(self, market):
         """kospi, kosdaq 시장별 주식종목 리스트를 반환한다.
 
-        :param str market: 0:kospi, 10:kosdaq, kospi, kosdaq
+        :param str market: constant.KOSPI, constant.KOSDAQ
         :return: list code_list: [code_name1:str, code_name2:str, ..., code_nameN:str]
         """
-        if isinstance(market, int):
-            if market not in [0, 10]:
-                self.logger.error("market attribute is the one of 'kospi', 'kosdaq', '0', '10', 0, 10")
-                raise constant.MarketNameError('Stock Market Value Format Error')
-            market = str(market)
-        elif isinstance(market, str):
-            if market not in ['kospi', 'kosdaq', '0', '10']:
-                self.logger.error("market attribute is the one of 'kospi', 'kosdaq', '0', '10', 0, 10")
-                raise constant.MarketNameError('Stock Market Value Format Error')
-            if market == 'kospi':
-                market = '0'
-            elif market == 'kosdaq':
-                market = '10'
-        else:
-            self.logger.error("market attribute is the one of 'kospi', 'kosdaq', '0', '10', 0, 10")
-            raise constant.MarketNameError('Stock Market Value Format Error')
+        if not self.is_valid_market(market):
+            raise constant.MarketNameError("market should be constant.KOSPI, constant.KOSDAQ")
 
         code_list = self.dynamicCall("GetCodeListByMarket(QString)", market)
         code_list = code_list.strip(';').split(';')
@@ -583,10 +572,59 @@ class Kiwoom(QAxWidget):
         self.ret_data = self.tr_mgr.opt10004("주식호가요청", code, screen_no)
         return self.ret_data
 
-    def rapidly_swing_price_stock(self,
-                                  market, swing_gubun, time_gubun, time,
-                                  vol_gubun, stock_condi, credit_condi, screen_no):
+    @avoid_server_check_time
+    def rapidly_rising_price_stock(self, market, time_gubun, time, vol_gubun, screen_no):
         """가격급등락 요청
+
+            example)
+            시장구분 = 000:전체, 001:코스피, 101:코스닥, 201:코스피200
+            등락구분 = 1:급등
+            시간구분 = 1:분전, 2:일전
+            시간 = 분 혹은 일입력
+            거래량구분 = 00000:전체조회, 00010:만주이상, 00050:5만주이상, 00100:10만주이상, 00150:15만주이상,
+                         00200:20만주이상, 00300:30만주이상, 00500:50만주이상, 01000:백만주이상
+            종목조건 = 1:관리종목제외
+            신용조건 = 0:전체조회
+            가격조건 = 0:전체조회
+            상하한포함 = 1:포함
+
+        :param market:
+        :param time_gubun:
+        :param time:
+        :param vol_gubun:
+        :return:
+        """
+        self.ret_data = self.tr_mgr.opt10019("가격급등락요청",
+                                             market,
+                                             "1",  # 급등
+                                             time_gubun,
+                                             time,
+                                             vol_gubun,
+                                             "1",  # 관리종목 제외
+                                             "0",  # 신용조건 전체
+                                             "0",  # 가격조건 전체
+                                             "1",  # 상하한 포함
+                                             screen_no)
+        return self.ret_data
+
+    @avoid_server_check_time
+    def rapidly_swing_price_stock_detail(self,
+                                         market, swing_gubun, time_gubun, time,
+                                         vol_gubun, stock_condi, credit_condi, price_condi, updown_limit,
+                                         screen_no):
+        """가격급등락 요청
+
+            example)
+            시장구분 = 000:전체, 001:코스피, 101:코스닥, 201:코스피200
+            등락구분 = 1:급등, 2:급락
+            시간구분 = 1:분전, 2:일전
+            시간 = 분 혹은 일입력
+            거래량구분 = 00000:전체조회, 00010:만주이상, 00050:5만주이상, 00100:10만주이상, 00150:15만주이상,
+                         00200:20만주이상, 00300:30만주이상, 00500:50만주이상, 01000:백만주이상
+            종목조건 = 0:전체조회, 1:관리종목제외, 3:우선주제외, 5:증100제외, 6:증100만보기, 7:증40만보기, 8:증30만보기
+            신용조건 = 0:전체조회, 1:신용융자A군, 2:신용융자B군, 3:신용융자C군, 4:신용융자D군, 9:신용융자전체
+            가격조건 = 0:전체조회, 1:1천원미만, 2:1천원~2천원, 3:2천원~3천원, 4:5천원~1만원, 5:1만원이상, 8:1천원이상
+            상하한포함 = 0:미포함, 1:포함
 
         :param market:
         :param swing_gubun:
@@ -595,6 +633,8 @@ class Kiwoom(QAxWidget):
         :param vol_gubun:
         :param stock_condi:
         :param credit_condi:
+        :param price_condi:
+        :param updown_limit:
         :return:
         """
         self.ret_data = self.tr_mgr.opt10019("가격급등락요청",
@@ -605,6 +645,8 @@ class Kiwoom(QAxWidget):
                                              vol_gubun,
                                              stock_condi,
                                              credit_condi,
+                                             price_condi,
+                                             updown_limit,
                                              screen_no)
         return self.ret_data
 
@@ -636,14 +678,37 @@ class Kiwoom(QAxWidget):
 
     @avoid_server_check_time
     @common.type_check
-    def stock_price_by_min(self, code: str, tick: str, screen_no: str, start_date: datetime, end_date: datetime):
+    def stock_price_by_tick(self, code: str, tick: str, screen_no: str, start_date: datetime, end_date: datetime):
+        """특정 주식종목의 틱봉 데이터를 요청하는 함수. tr요청시 한번에 최대 600개까지만 return 가능.
+
+        :param str code: 주식코드
+        :param str tick: Tick 단위(1, 3, 5, 10, 30)
+        :param str screen_no: 화면번호
+        :param datetime start_date: oldest date of user request
+        :param datetime end_date: newest date of user request
+        :return:
         """
-        특정 주식종목의 분봉 데이터를 요청하는 함수. tr요청시 한번에 최대 600개까지만 return 가능.
-        :param code: str - 주식코드
-        :param tick: str - 분단위(1, 3, 5, 10, 15, 30, 45, 60)
-        :param screen_no: str - 화면번호
-        :param start_date: datetime - oldest date of user request
-        :param end_date: datetime - newest date of user request
+        self.ret_data = []
+        while True:
+            # self.logger.info("Do Transition opt10080")
+            curr_result = self.tr_mgr.opt10079('주식틱봉', code, tick, screen_no, start_date, end_date)
+            if not bool(curr_result):
+                break
+            self.ret_data += curr_result
+            end_date = self.ret_data[-1]['date'] - timedelta(seconds=int(tick))
+            time.sleep(0.2)  # delay
+        return self.ret_data
+
+    @avoid_server_check_time
+    @common.type_check
+    def stock_price_by_min(self, code: str, tick: str, screen_no: str, start_date: datetime, end_date: datetime):
+        """특정 주식종목의 분봉 데이터를 요청하는 함수. tr요청시 한번에 최대 600개까지만 return 가능.
+
+        :param str code: 주식코드
+        :param str tick: 분단위(1, 3, 5, 10, 15, 30, 45, 60)
+        :param str screen_no: 화면번호
+        :param datetime start_date: oldest date of user request
+        :param datetime end_date: newest date of user request
         :return:
         """
         self.ret_data = []
@@ -743,12 +808,13 @@ class Kiwoom(QAxWidget):
         time.sleep(0.2)  # delay
         return self.ret_data
 
-
     @avoid_server_check_time
     @common.type_check
     def job_categ_index(self, code: str, screen_no: str):
-        """
+        """전업종지수요청
 
+        :param str code: 001:종합(KOSPI), 002:대형주, 003:중형주, 004:소형주 101:종합(KOSDAQ), 201:KOSPI200, 302:KOSTAR, 701: KRX100 나머지 ※ 업종코드 참고
+        :param str screen_no:
         :return:
         """
         self.ret_data = []
@@ -759,7 +825,7 @@ class Kiwoom(QAxWidget):
     # def job_categ_index_by_min(self):
 
     def 계좌수익률요청(self, rqname, account_no, screen_no):
-        """계좌수익률요청 TR
+        """계좌수익률요청
 
         :param rqname: 요청명
         :param account_no: 계좌번호
@@ -771,6 +837,9 @@ class Kiwoom(QAxWidget):
 
     def 당일실현손익상세요청(self, rqname, account_no, account_pw, code, screen_no):
         """당일실현손익상세요청 TR
+
+            ex) 중요한건 중목끝에 세미콜론을 꼭 넣어야 함. (모의투자일 경우)
+            self.kw.당일실현손익상세요청('aa', '8105566411', '', '000000;', '6001')
 
         :param rqname str: 요청명
         :param account_no str: 계좌번호
@@ -990,8 +1059,10 @@ class Kiwoom(QAxWidget):
         :param key: 일반적으로 screen_no 를 사용하면 된다.
         :return:
         """
+
         if event in ["OnReceiveTrCondition", "OnReceiveTrData"]:
-            self.notify_fn[event][key](data)
+            if key in self.notify_fn:
+                self.notify_fn[event][key](data)
         else:  # OnReceiveRealCondition, OnReceiveChejanData, OnReceiveRealData
             for fn in self.notify_fn[event]:
                 fn(data)

@@ -16,12 +16,11 @@ from PyQt5.QAxContainer import *
 from PyQt5 import uic
 from PyQt5 import QtGui
 
-from slacker import Slacker
-
 from kiwoom.kw import Kiwoom
 from kiwoom import constant
 from config import config_manager
 from util.tt_logger import TTlog
+from util.slack import Slack
 
 from database.db_manager import DBM
 from pymongo import MongoClient
@@ -40,12 +39,11 @@ class TopTrader(QMainWindow, ui):
         self.logger = TTlog().logger
         self.mongo = MongoClient()
         self.tt_db = self.mongo.TopTrader
-        self.slack = Slacker(config_manager.get_slack_token())
+        self.slack = Slack(config_manager.get_slack_token())
         self.kw = Kiwoom()
         self.init_trading()
-        self.just_sell_all_stocks()
-        # self.auto_trading()
-
+        # self.just_sell_all_stocks()
+        self.auto_trading()
 
     def init_trading(self):
         self.login()
@@ -55,7 +53,6 @@ class TopTrader(QMainWindow, ui):
         self.my_stock_pocket = set()  # 보유중인 종목의 code를 저장
         t = datetime.today()
         self.s_time = datetime(t.year, t.month, t.day, 9, 0, 0)  # 장 시작시간, 오전9시
-
 
     def login(self):
         # Login
@@ -129,7 +126,6 @@ class TopTrader(QMainWindow, ui):
                 'account_no': self.acc_no
             })
             time.sleep(0.5)
-
 
     def check_stocks_to_sell(self):
         self.logger.info("[Timer Interrupt] 30 second")
@@ -258,9 +254,8 @@ class TopTrader(QMainWindow, ui):
 
         # callback fn 등록
         self.kw.reg_callback("OnReceiveRealCondition", "", self.search_condi)
-        # self.kw.notify_fn["OnReceiveRealCondition"] = self.search_condi
 
-        screen_no = "4000"
+        screen_no, cnt = 4000, 0
         condi_info = self.kw.get_condition_load()
         self.logger.info("실시간 조건 검색 시작합니다.")
         for condi_name, condi_id in condi_info.items():
@@ -268,8 +263,12 @@ class TopTrader(QMainWindow, ui):
             self.logger.info("화면번호: {}, 조건식명: {}, 조건식ID: {}".format(
                 screen_no, condi_name, condi_id
             ))
-            self.kw.send_condition(screen_no, condi_name, int(condi_id), 1)
+            self.kw.send_condition(str(screen_no), condi_name, int(condi_id), 1)
             time.sleep(0.5)
+            cnt += 1
+            if cnt == 10:
+                screen_no += 1
+                cnt = 0
 
 
 # Print Exception Setting

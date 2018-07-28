@@ -20,7 +20,104 @@ class TrManager():
         self.tr_ret_data = None
         self.tr_next = 0
         self.tr_continue = None
+        self.set_fidlist_n_mask()
         self.tr_post = PostFn(self)
+
+    def set_fidlist_n_mask(self):
+        # 10003 - 체결정보, 시간(HHMMSS)
+        self.OPT10003_FIDLIST = ["시간", "현재가", "전일대비", "대비율", "우선매도호가단위",
+                                 "우선매수호가단위", "체결거래량", "sign", "누적거래량", "누적거래대금", "체결강도"]
+        self.OPT10003_MASK =    [str, float, float, float, float,
+                                 float, float, str, float, float, float]
+
+        self.OPT10004_FIDLIST = ["호가잔량기준시간",
+                                 "매도10차선잔량대비", "매도10차선잔량", "매도10차선호가",
+                                 "매도9차선잔량대비", "매도9차선잔량", "매도9차선호가",
+                                 "매도8차선잔량대비", "매도8차선잔량", "매도8차선호가",
+                                 "매도7차선잔량대비", "매도7차선잔량", "매도7차선호가",
+                                 "매도6차선잔량대비", "매도6차선잔량", "매도6차선호가",
+                                 "매도5차선잔량대비", "매도5차선잔량", "매도5차선호가",
+                                 "매도4차선잔량대비", "매도4차선잔량", "매도4차선호가",
+                                 "매도3차선잔량대비", "매도3차선잔량", "매도3차선호가",
+                                 "매도2차선잔량대비", "매도2차선잔량", "매도2차선호가",
+                                 "매도1차선잔량대비", "매도최우선잔량", "매도최우선호가",
+                                 "매수최우선호가", "매수최우선잔량", "매수1차선잔량대비",
+                                 "매수2차선호가", "매수2차선잔량", "매수2차선잔량대비",
+                                 "매수3차선호가", "매수3차선잔량", "매수3차선잔량대비",
+                                 "매수4차선호가", "매수4차선잔량", "매수4차선잔량대비",
+                                 "매수5차선호가", "매수5차선잔량", "매수5차선잔량대비",
+                                 "매수6차선호가", "매수6차선잔량", "매수6차선잔량대비",
+                                 "매수7차선호가", "매수7차선잔량", "매수7차선잔량대비",
+                                 "매수8차선호가", "매수8차선잔량", "매수8차선잔량대비",
+                                 "매수9차선호가", "매수9차선잔량", "매수9차선잔량대비",
+                                 "매수10차선호가", "매수10차선잔량", "매수10차선잔량대비",
+                                 "총매도잔량직전대비", "총매도잔량", "총매수잔량", "총매수잔량직전대비",
+                                 "시간외매도잔량", "시간외매수잔량", "시간외매수잔량대비"]
+        self.OPT10004_MASK = [str,
+                              float, float, float,  # 10
+                              float, float, float,  # 9
+                              float, float, float,  # 8
+                              float, float, float,  # 7
+                              float, float, float,  # 6
+                              float, float, float,  # 5
+                              float, float, float,  # 4
+                              float, float, float,  # 3
+                              float, float, float,  # 2
+                              float, float, float,  # 1
+                              float, float, float,  # 1
+                              float, float, float,  # 2
+                              float, float, float,  # 3
+                              float, float, float,  # 4
+                              float, float, float,  # 5
+                              float, float, float,  # 6
+                              float, float, float,  # 7
+                              float, float, float,  # 8
+                              float, float, float,  # 9
+                              float, float, float,  # 10
+                              float, float, float, float,
+                              float, float, str]
+
+        # 10019 - 가격급등락
+        self.OPT10019_FIDLIST = ["종목코드", "종목분류", "종목명", "전일대비기호", "전일대비",
+                                 "등락률", "기준가", "현재가", "기준대비", "거래량", "급등률"]
+        self.OPT10019_MASK =    [str, str, str, str, float,
+                                 float, float, float, float, float, float]
+
+        # 10023 - 거래량급증
+        self.OPT10023_FIDLIST = ["종목코드", "종목명", "현재가", "전일대비기호", "전일대비",
+                                  "등락률", "이전거래량", "현재거래량", "급증량", "급증률"]
+        self.OPT10023_MASK =    [str, str, float, str, float,
+                                 float, float, float, float, float]
+
+        # 10077 - 당일실현손익상세
+        self.OPT10077_FIDLIST = ["종목명", "체결명", "매입단가", "체결가", "당일매도손익",
+                                 "손익율", "당일매매수수료", "당일매매세금", "종목코드"]
+        self.OPT10077_MASK =    [str, str, float, float, float,
+                                 float, float, float, str]
+
+        # 10085
+        self.OPT10085_FIDLIST = ["일자", "종목코드", "종목명", "현재가", "매입가", "매입금액",
+                                 "보유수량", "당일매도손익", "당일매매수수료", "당일매매세금",
+                                 "신용구분", "대출일", "결제잔고", "청산가능수량", "신용금액",
+                                 "신용이자", "만기일"]
+        self.OPT10085_MASK =    [str, str, str, float, float, float,
+                                 float, float, str, float,
+                                 str, str, float, float, float,
+                                 str, str]
+
+        # 20002 - 업종별주가요청
+        self.OPT20002_FIDLIST = ["종목코드", "종목명", "현재가", "전일대비기호", "전일대비",
+                                 "등락률", "현재거래량", "매도호가", "매수호가", "시가", "고가", "저가"]
+        self.OPT20002_MASK =    [str, str, float, str, float,
+                                 float, float, float, float, float, float, float]
+
+        # 20003 - 전업종지수
+        self.OPT20003_FIDLIST = ["종목코드", "종목명", "현재가", "대비기호", "전일대비",
+                                 "등락률", "거래량", "비중", "거래대금", "상한", "상승",
+                                 "보합", "하락", "하한", "상장종목수"]
+        self.OPT20003_MASK =    [str, str, float, str, float,
+                                 float, float, str, float, float, float,
+                                 float, float, float, float]
 
     def init_tr_ret_data(f):
         @wraps(f)
@@ -60,62 +157,45 @@ class TrManager():
     def opt10003(self, rqname, code, screen_no):
         self.kw._set_input_value("종목코드", code)
         self.kw._comm_rq_data(rqname, "opt10003", "0", screen_no)  # lock event loop
+
+        # cnt = 0
+        # while self.tr_next == "2":
+        #     self.logger.debug("opt10003 tr req cnt: {}".format(cnt))
+        #     self.kw._comm_rq_data(rqname, "opt10003", "2", screen_no)  # lock event loop
         return self.tr_ret_data  # data set when post_tr_function
 
     def post_opt10003(self, trcode, rqname, next):
         m_data = self.kw._get_comm_data_ex(trcode, '체결정보')
-        pdb.set_trace()
-        fid_list_m = ["시간", "현재가", "전일대비", "대비율", "우선매도호가단위", "우선매수호가단위", "체결거래량",
-                      "sign", "누적거래량", "누적거래대금", "체결강도"]
-
         for data in m_data:
             tmp = {}
-            for i, f in enumerate(fid_list_m):
-                tmp[f] = data[i]
+            for fid, mask_f, d in zip(self.OPT10003_FIDLIST, self.OPT10003_MASK, data):
+                tmp[fid] = mask_f(d)
             self.tr_ret_data.append(tmp)
         self.tr_next = next
+
 
     @init_tr_ret_data
     def opt10004(self, rqname, code, screen_no):
         self.kw._set_input_value("종목코드", code)
         self.kw._comm_rq_data(rqname, "opt10004", "0", screen_no)  # lock event loop
+        while self.tr_next == "2":
+            self.kw._comm_rq_data(rqname, "opt10004", "2", screen_no)  # lock event loop
+
         return self.tr_ret_data  # data set when post_tr_function
 
     def post_opt10004(self, trcode, rqname, next):
-        fid_list_s = ["호가잔량기준시간",
-                      "매도10차선잔량대비", "매도10차선잔량", "매도10차선호가",
-                      "매도9차선잔량대비", "매도9차선잔량", "매도9차선호가",
-                      "매도8차선잔량대비", "매도8차선잔량", "매도8차선호가",
-                      "매도7차선잔량대비", "매도7차선잔량", "매도7차선호가",
-                      "매도6차선잔량대비", "매도6차선잔량", "매도6차선호가",
-                      "매도5차선잔량대비", "매도5차선잔량", "매도5차선호가",
-                      "매도4차선잔량대비", "매도4차선잔량", "매도4차선호가",
-                      "매도3차선잔량대비", "매도3차선잔량", "매도3차선호가",
-                      "매도2차선잔량대비", "매도2차선잔량", "매도2차선호가",
-                      "매도1차선잔량대비", "매도최우선잔량", "매도최우선호가",
-                      "매수최우선호가", "매수최우선잔량", "매수1차선잔량대비",
-                      "매수2차선호가", "매수2차선잔량", "매수2차선잔량대비",
-                      "매수3차선호가", "매수3차선잔량", "매수3차선잔량대비",
-                      "매수4차선호가", "매수4차선잔량", "매수4차선잔량대비",
-                      "매수5차선호가", "매수5차선잔량", "매수5차선잔량대비",
-                      "매수6차선호가", "매수6차선잔량", "매수6차선잔량대비",
-                      "매수7차선호가", "매수7차선잔량", "매수7차선잔량대비",
-                      "매수8차선호가", "매수8차선잔량", "매수8차선잔량대비",
-                      "매수9차선호가", "매수9차선잔량", "매수9차선잔량대비",
-                      "매수10차선호가", "매수10차선잔량", "매수10차선잔량대비",
-                      "총매도잔량직전대비", "총매도잔량", "총매수잔량", "총매수잔량직전대비",
-                      "시간외매도잔량", "시간외매수잔량", "시간외매수잔량대비"]
-        tmp = {}
-        for f in fid_list_s:
-            data = self.kw._get_comm_data(trcode, '주식기본정보', 0, f)
-            tmp[f] = data
-        self.tr_ret_data = tmp
+        m_data = self.kw._get_comm_data_ex(trcode, '주식호가')
+        for data in m_data:
+            tmp = {}
+            for fid, mask_f, d in zip(self.OPT10004_FIDLIST, self.OPT10004_MASK, data):
+                tmp[fid] = mask_f(d)
+            self.tr_ret_data.append(tmp)
         self.tr_next = next
 
     @init_tr_ret_data
     def opt10019(self, rqname,
                  market, swing_gubun, time_gubun, time, vol_gubun,
-                 stock_condi, credit_condi,
+                 stock_condi, credit_condi, price_condi, updown_limit,
                  screen_no):
         self.kw._set_input_value("시장구분", market)
         self.kw._set_input_value("등락구분", swing_gubun)
@@ -124,6 +204,8 @@ class TrManager():
         self.kw._set_input_value("거래량구분", vol_gubun)
         self.kw._set_input_value("종목조건", stock_condi)
         self.kw._set_input_value("신용조건", credit_condi)
+        self.kw._set_input_value("가격조건", price_condi)
+        self.kw._set_input_value("상하한포함", updown_limit)
         self.kw._comm_rq_data(rqname, "opt10019", "0", screen_no)
 
         while self.tr_next == "2":
@@ -134,20 +216,18 @@ class TrManager():
             self.kw._set_input_value("거래량구분", vol_gubun)
             self.kw._set_input_value("종목조건", stock_condi)
             self.kw._set_input_value("신용조건", credit_condi)
+            self.kw._set_input_value("가격조건", price_condi)
+            self.kw._set_input_value("상하한포함", updown_limit)
             self.kw._comm_rq_data(rqname, "opt10019", "2", screen_no)
 
         return self.tr_ret_data  # data set when post_tr_function
 
     def post_opt10019(self, trcode, rqname, next):
         m_data = self.kw._get_comm_data_ex(trcode, '가격급등락')
-        fid_list_m = [
-            "종목코드", "종목분류", "종목명", "전일대비기호", "전일대비",
-            "등락률", "기준가", "현재가", "기준대비", "거래량", "급등률"
-        ]
         for data in m_data:
             tmp = {}
-            for i, f in enumerate(fid_list_m):
-                tmp[f] = data[i]
+            for fid, mask_f, d in zip(self.OPT10019_FIDLIST, self.OPT10019_MASK, data):
+                tmp[fid] = mask_f(d)
             self.tr_ret_data.append(tmp)
         self.tr_next = next
 
@@ -179,16 +259,66 @@ class TrManager():
 
     def post_opt10023(self, trcode, rqname, next):
         m_data = self.kw._get_comm_data_ex(trcode, '거래량급증')
-        fid_list_m = [
-            "종목코드", "종목명", "현재가", "전일대비기호", "전일대비",
-            "등락률", "이전거래량", "현재거래량", "급증량", "급증률"
-        ]
         for data in m_data:
             tmp = {}
-            for i, f in enumerate(fid_list_m):
-                tmp[f] = data[i]
+            for fid, mask_f, d in zip(self.OPT10023_FIDLIST, self.OPT10023_MASK, data):
+                tmp[fid] = mask_f(d)
             self.tr_ret_data.append(tmp)
         self.tr_next = next
+
+    @init_tr_ret_data
+    def opt10079(self, rqname, code, tick, screen_no, begin_date, end_date):
+        """
+        특정 주식종목의 틱봉 데이터를 요청하는 함수.
+        :param rqname: str - 요청명
+        :param code: str - 주식코드
+        :param tick: str - 틱단위(1, 3, 5, 10, 30)
+        :param screen_no: str - 화면번호
+        :param begin_date: datetime - oldest date of user request
+        :param end_date: datetime - newest date of user request
+        :return:
+        """
+        def tr_process(rqname, code, tick, screen_no, next):
+            self.kw.code = code
+            self.kw._set_input_values([("종목코드", code), ("틱범위", tick), ("수정주가구분", "0")])
+            ret_code = self.kw._comm_rq_data(rqname, "opt10079", next, screen_no)  # lock event loop
+            if ReturnCode.OP_ERR_NONE != ret_code:
+                raise Exception("[KiWoom Error][opt10079] %s" % ReturnCode.CAUSE[ret_code])
+        try:
+            tr_process(rqname, code, tick, screen_no, 0)
+            # data(self.tr_ret_data) is set when post_tr_function
+            if self.tr_next == '0':
+                return [d for d in self.tr_ret_data if begin_date <= d['date'] <= end_date]
+
+            if bool(begin_date) and begin_date >= self.tr_ret_data[-1]['date']:
+                return [d for d in self.tr_ret_data if begin_date <= d['date'] <= end_date]
+
+            while self.tr_next == '2' and begin_date < self.tr_ret_data[-1]['date']:
+                tr_process(rqname, code, tick, screen_no, 2)
+
+            return [d for d in self.tr_ret_data if begin_date <= d['date'] <= end_date]
+        except Exception as e:
+            self.logger.error(e)
+
+        return []
+
+    def post_opt10079(self, trcode, rqname, next):
+        data = self.kw._get_comm_data_ex(trcode, '주식틱차트조회')
+        f = ["현재가", "거래량", "체결시간", "시가", "고가", "저가", "수정주가구분", "수정비율",
+             "대업종구분", "소업종구분", "종목정보", "수정주가이벤트", "전일종가"]
+
+        for d in data:
+            stock_data = {"현재가": 0, "거래량": 0, "체결시간": 0, "시가": 0, "고가": 0, "저가": 0}
+            for field, val in zip(f, [_.strip() for _ in d]):
+                if field in stock_data:
+                    stock_data[field] = strutil.convert_data(field, val)
+                    if "체결시간" == field:  # YYYYMMDDHHMMSS
+                        stock_data['date'] = stock_data['체결시간']
+                        del stock_data['체결시간']
+                    stock_data['code'] = self.kw.code
+            self.tr_ret_data.append(stock_data)
+        self.tr_next = next
+
 
     @init_tr_ret_data
     def opt10080(self, rqname, code, tick, screen_no, begin_date, end_date):
@@ -228,7 +358,7 @@ class TrManager():
 
     def post_opt10080(self, trcode, rqname, next):
         data = self.kw._get_comm_data_ex(trcode, '주식분봉차트조회')
-        f = ["현재가", "거래량", "체결시간", "시가", "고가", "저가", "수정주가구분", "수정비욜",
+        f = ["현재가", "거래량", "체결시간", "시가", "고가", "저가", "수정주가구분", "수정비율",
              "대업종구분", "소업종구분", "종목정보", "수정주가이벤트", "전일종가"]
 
         for d in data:
@@ -276,7 +406,7 @@ class TrManager():
     def post_opt10081(self, trcode, rqname, next):
         data = self.kw._get_comm_data_ex(trcode, '주식일봉차트조회')
         f = ["종목코드", "현재가", "거래량", "거래대금", "일자", "시가", "고가", "저가",
-             "수정주가구분", "수정비욜", "대업종구분", "소업종구분", "종목정보", "수정주가이벤트", "전일종가"]
+             "수정주가구분", "수정비율", "대업종구분", "소업종구분", "종목정보", "수정주가이벤트", "전일종가"]
 
         for d in data:
             stock_data = {"현재가": 0, "거래량": 0, "거래대금": 0, "일자": 0, "시가": 0, "고가": 0, "저가": 0}
@@ -325,7 +455,7 @@ class TrManager():
     def post_opt10082(self, trcode, rqname, next):
         data = self.kw._get_comm_data_ex(trcode, '주식주봉차트조회')
         f = ["현재가", "거래량", "거래대금", "일자", "시가", "고가", "저가",
-             "수정주가구분", "수정비욜", "대업종구분", "소업종구분", "종목정보", "수정주가이벤트", "전일종가"]
+             "수정주가구분", "수정비율", "대업종구분", "소업종구분", "종목정보", "수정주가이벤트", "전일종가"]
 
         for d in data:
             stock_data = {"현재가": 0, "거래량": 0, "거래대금": 0, "일자": 0, "시가": 0, "고가": 0, "저가": 0}
@@ -343,6 +473,7 @@ class TrManager():
     def opt10083(self, rqname, code, screen_no, begin_date, end_date):
         """
         특정 주식종목의 주봉 데이터를 요청하는 함수.
+
         :param rqname: str - 요청명
         :param code: str - 주식코드
         :param screen_no: str - 화면번호
@@ -372,9 +503,16 @@ class TrManager():
         return [d for d in self.tr_ret_data if begin_date <= d['date'] <= end_date]
 
     def post_opt10083(self, trcode, rqname, next):
+        """
+
+        :param trcode:
+        :param rqname:
+        :param next:
+        :return:
+        """
         data = self.kw._get_comm_data_ex(trcode, '주식월봉차트조회')
         f = ["현재가", "거래량", "거래대금", "일자", "시가", "고가", "저가",
-             "수정주가구분", "수정비욜", "대업종구분", "소업종구분", "종목정보", "수정주가이벤트", "전일종가"]
+             "수정주가구분", "수정비율", "대업종구분", "소업종구분", "종목정보", "수정주가이벤트", "전일종가"]
 
         for d in data:
             stock_data = {"현재가": 0, "거래량": 0, "거래대금": 0, "일자": 0, "시가": 0, "고가": 0, "저가": 0}
@@ -418,14 +556,10 @@ class TrManager():
         :return:
         """
         m_data = self.kw._get_comm_data_ex(trcode, '업종별주가')
-
-        fid_list_m = ["종목코드", "종목명", "현재가", "전일대비기호", "전일대비", "등락률", "현재거래량",
-                      "매도호가", "매수호가", "시가", "고가", "저가"]
         for data in m_data:
             tmp = {}
-            for i, f in enumerate(fid_list_m):
-                k, v = f, data[i]
-                tmp[k] = v
+            for fid, mask_f, d in zip(self.OPT20002_FIDLIST, self.OPT20002_MASK, data):
+                tmp[fid] = mask_f(d)
             self.tr_ret_data.append(tmp)
         self.tr_next = next
         self.logger.info("[POST_OPT20002] completed")
@@ -434,9 +568,9 @@ class TrManager():
     def opt20003(self, rqname, code, screen_no):
         """전업종 지수 요청
 
-        :param rqname:
-        :param code:
-        :param screen_no:
+        :param str rqname:
+        :param str code: 001:종합(KOSPI), 002:대형주, 003:중형주, 004:소형주 101:종합(KOSDAQ), 201:KOSPI200, 302:KOSTAR, 701: KRX100 나머지 ※ 업종코드 참고
+        :param str screen_no:
         :return:
         """
         self.kw._set_input_value("업종코드", code)
@@ -444,27 +578,29 @@ class TrManager():
         return self.tr_ret_data
 
     def post_opt20003(self, trcode, rqname, next):
-        """
+        """전업종 지수 요청
 
+        :param str trcode:
+        :param str rqname:
+        :param str next:
         :return:
         """
         m_data = self.kw._get_comm_data_ex(trcode, '전업종지수')
-
-        fid_list_m = ["종목코드", "종목명", "현재가", "대비기호", "전일대비", "등락률", "거래량", "비중", "거래대금",
-                      "상한", "상승", "보합", "하락", "하한", "상장종목수"]
         for data in m_data:
             tmp = {}
-            for i, f in enumerate(fid_list_m):
-                k, v = f, data[i]
-                tmp[k] = v
+            for fid, mask_f, d in zip(self.OPT20003_FIDLIST, self.OPT20003_MASK, data):
+                tmp[fid] = mask_f(d)
             self.tr_ret_data.append(tmp)
         self.tr_next = next
         self.logger.info("[POST_OPT20003] completed")
 
     @init_tr_ret_data
     def opt10085(self, rqname, account_no, screen_no):
-        """계좌수익률 요청 TR
-        그동안 매매했던 모든 종목에 대해 현재 상황을 알려줌.
+        """계좌수익률 요청
+
+            그동안 매매했던 모든 종목에 대해 현재 상황을 알려줌.
+
+            ex)
            '메디프론': [{'결제잔고': '60',
                      '당일매도손익': '0',
                      '당일매매세금': '0',
@@ -510,35 +646,30 @@ class TrManager():
         return self.tr_ret_data
 
     def post_opt10085(self, trcode, rqname, next):
+        """계좌수익률 요청
+
+        :param str trcode:
+        :param str rqname:
+        :param str next:
+        :return:
+        """
         # data = self.kw._get_comm_data_ex(trcode, '계좌수익률')
-        fid_list_m = ["일자", "종목코드", "종목명", "현재가", "매입가", "매입금액", "보유수량",
-                      "당일매도손익", "당일매매수수료", "당일매매세금", "신용구분", "대출일",
-                      "결제잔고", "청산가능수량", "신용금액", "신용이자", "만기일"]
-
-        self.tr_ret_data = {
-            "계좌수익률": {}
-        }
-
         n = self.kw._get_repeat_cnt(trcode, rqname)
-        pdb.set_trace()
         for i in range(n):
             tmp = {}
-            for f in fid_list_m:
-                data = self.kw._get_comm_data(trcode, '계좌수익률', i, f)
-                tmp[f] = data
-            if tmp['종목명'] not in self.tr_ret_data["계좌수익률"]:
-                self.tr_ret_data["계좌수익률"][tmp['종목명']] = [tmp]
-            else:
-                self.tr_ret_data["계좌수익률"][tmp['종목명']].append(tmp)
-
+            data = [self.kw._get_comm_data(trcode, '계좌수익률', i, fid) for fid in self.OPT10085_FIDLIST]
+            for fid, mask_f, d in zip(self.OPT10085_FIDLIST, self.OPT10085_MASK, data):
+                tmp[fid] = mask_f(d)
+            self.tr_ret_data.append(tmp)
         self.tr_next = next
         self.logger.info("[POST_OPT10085] completed")
 
     @init_tr_ret_data
     def opt10077(self, rqname, account_no, account_pw, code, screen_no):
         """당일실현손익상세요청 요청 TR
-        당일 '실현손익' 관련 매매 이력이 없으면 data가 아무것도 없음.
-        매도를 통해 수익을 '실현'한 부분에 대해서 체결단위로 정보를 만들어줌.
+
+            당일 '실현손익' 관련 매매 이력이 없으면 data가 아무것도 없음.
+            매도를 통해 수익을 '실현'한 부분에 대해서 체결단위로 정보를 만들어줌.
 
         :param account_no str: 계좌번호
         :param account_pw str: 비밀번호
@@ -560,42 +691,26 @@ class TrManager():
         :param next:
         :return:
         """
-        # data = self.kw._get_comm_data_ex(trcode, '당일실현손익상세')
-        n = self.kw._get_repeat_cnt(trcode, rqname)
+        m_data = self.kw._get_comm_data_ex(trcode, '당일실현손익상세')
+        if not bool(m_data):
+            self.tr_ret_data = []
+            return
 
-        fid_list_s = ["당일실현손익"]
-        fid_list_m = ["종목명", "체결명", "매입단가", "체결가", "당일매도손익", "손익율",
-                      "당일매매수수료", "당일매매세금", "종목코드"]
-        self.tr_ret_data = {
-            "당일실현손익": {},
-            "당일실현손익상세": {}
-        }
-
-        tmp = {}
-        for f in fid_list_s:
-            data = self.kw._get_comm_data(trcode, '당일실현손익', 0, f)
-            tmp[f] = data
-
-        self.tr_ret_data["당일실현손익"] = tmp
-
-        for i in range(n):
+        for data in m_data:
+            data = [d.strip() for d in data]
+            data[-1] = data[-1][1:]  # A001470 -> 001470 종목코드 변경
             tmp = {}
-            for f in fid_list_m:
-                data = self.kw._get_comm_data(trcode, '당일실현손익상세', i, f)
-                tmp[f] = data
-            if tmp['종목명'] not in self.tr_ret_data["당일실현손익상세"]:
-                self.tr_ret_data["당일실현손익상세"][tmp['종목명']] = [tmp]
-            else:
-                self.tr_ret_data["당일실현손익상세"][tmp['종목명']].append(tmp)
-        pp(self.tr_ret_data)
+            for fid, mask_f, d in zip(self.OPT10077_FIDLIST, self.OPT10077_MASK, data):
+                tmp[fid] = mask_f(d)
+            self.tr_ret_data.append(tmp)
         self.tr_next = next
+        # self.kw._get_comm_data(trcode, '당일실현손익', 0, '당일실현손익')
         self.logger.info("[POST_OPT10077] completed")
-
 
     @init_tr_ret_data
     def opw00004(self, rqname, account_no, account_pw, gubun, pw_gubun, screen_no):
-        """
-        계좌평가현황요청 TR
+        """계좌평가현황요청 TR
+
         :param rqname str: 요청명
         :param account_no str: 계좌번호
         :param account_pw str: 비밀번호
