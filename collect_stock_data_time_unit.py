@@ -20,7 +20,6 @@ from PyQt5.QtCore import pyqtSlot
 from slacker import Slacker
 
 from kiwoom.kw import Kiwoom
-from kiwoom import constant
 from config import config_manager
 from util.tt_logger import TTlog
 
@@ -31,6 +30,7 @@ import random
 from collections import defaultdict
 from kiwoom.constant import KiwoomServerCheckTimeError
 import multiprocessing
+from util import constant
 
 # load main UI object
 ui = uic.loadUiType(config_manager.MAIN_UI_PATH)[0]
@@ -85,7 +85,7 @@ class TopTrader(QMainWindow, ui):
         print("Time: ", int(e_time-s_time))
 
     def get_stock_list(self):
-        kospi_code_list = self.kw.get_code_list_by_market(0)
+        kospi_code_list = self.kw.get_code_list_by_market(constant.KOSPI)
         stock_list = [[c, self.kw.get_master_stock_name(c)] for c in kospi_code_list]
         stock_list = [(c, name) for c, name in stock_list if not any(map(lambda x: x in name, constant.FILTER_KEYWORD))]
         stock_list.sort()

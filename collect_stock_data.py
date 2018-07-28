@@ -6,7 +6,7 @@ import time
 from pymongo import MongoClient
 from config import config_manager
 import datetime
-from util.tt_slack import TTSlack
+from util.slack import TTSlack
 
 
 def delay_min(t):

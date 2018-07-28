@@ -40,7 +40,6 @@ from util.tt_logger import TTlog
 
 # Kiwoom module
 from kiwoom.kw import Kiwoom
-from kiwoom import constant
 from kiwoom.constant import KiwoomServerCheckTimeError
 
 
