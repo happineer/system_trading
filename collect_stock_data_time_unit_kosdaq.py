@@ -130,9 +130,11 @@ class TopTrader(QMainWindow, ui):
         :param duration: min1, min3, min5, min10, min60 중 하나의 값
         :return:
         """
-        stock_list = self.get_stock_list(constant.KOSPI)
+        # stock_list = self.get_stock_list(constant.KOSPI)
         # stock_list += self.get_stock_list(constant.KOSDAQ)
-        cur = self.tt_db.time_series_temp.find({'type': duration})
+
+        stock_list = self.get_stock_list(constant.KOSDAQ)
+        cur = self.tt_db.time_series_temp2.find({'type': duration})
         s_date, e_date, s_index, current_flag = self.get_last_data(cur, duration)
 
         if not current_flag:
@@ -168,7 +170,7 @@ class TopTrader(QMainWindow, ui):
                          start_date=s_date, end_date=e_date)
             except KiwoomServerCheckTimeError as e:
                 self.logger.error("[KiwoomServerCheckTimeError] {}".format(duration))
-                self.tt_db.urgent.update({'type': 'error'},
+                self.tt_db.urgent2.update({'type': 'error'},
                                          {'type': 'error', 'error_code': e.error_code},
                                          upsert=True)
                 exit(0)
@@ -180,7 +182,7 @@ class TopTrader(QMainWindow, ui):
                 self.logger.error(e)
 
             # self.upsert_db(col, doc)
-            self.tt_db.time_series_temp.update({'type': duration},
+            self.tt_db.time_series_temp2.update({'type': duration},
                                                {'type': duration,
                                                 'code': code,
                                                 'stock_name': stock_name,
@@ -189,7 +191,7 @@ class TopTrader(QMainWindow, ui):
                                                 'end_date': e_date,
                                                 'total': total},
                                                upsert=True)
-            self.tt_db.urgent.update({'type': 'error'},
+            self.tt_db.urgent2.update({'type': 'error'},
                                      {'type': 'error', 'error_code': 0},
                                      upsert=True)
         exit(0)  # Program exit
@@ -208,7 +210,7 @@ class TopTrader(QMainWindow, ui):
         """
         stock_list = self.get_stock_list(constant.KOSPI)
         stock_list += self.get_stock_list(constant.KOSDAQ)
-        cur = self.tt_db.time_series_temp.find({'type': duration})
+        cur = self.tt_db.time_series_temp2.find({'type': duration})
         s_date, e_date, s_index, current_flag = self.get_last_data(cur, duration)
 
         if not current_flag:
@@ -247,13 +249,13 @@ class TopTrader(QMainWindow, ui):
                 doc = fn(code, screen_no=self.get_screen_no[duration], start_date=s_date, end_date=e_date)
             except KiwoomServerCheckTimeError as e:
                 self.logger.error("[KiwoomServerCheckTimeError] {}".format(duration))
-                self.tt_db.urgent.update({'type': 'error'},
+                self.tt_db.urgent2.update({'type': 'error'},
                                          {'type': 'error', 'error_code': e.error_code},
                                          upsert=True)
                 exit(0)
             col.insert(doc)
             # self.upsert_db(col, doc)
-            self.tt_db.time_series_temp.update({'type': duration},
+            self.tt_db.time_series_temp2.update({'type': duration},
                                                {'type': duration,
                                                 'code': code,
                                                 'stock_name': stock_name,
@@ -263,7 +265,7 @@ class TopTrader(QMainWindow, ui):
                                                 'total': total},
                                                upsert=True)
 
-            self.tt_db.urgent.update({'type': 'error'},
+            self.tt_db.urgent2.update({'type': 'error'},
                                      {'type': 'error', 'error_code': 0},
                                      upsert=True)
         exit(0)  # Program exit

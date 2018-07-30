@@ -42,7 +42,7 @@ class TopTrader(QMainWindow, ui):
     def __init__(self):
         super().__init__()
         # self.setupUi(self)  # load app screen
-        self.logger = TTlog(logger_name="RealCondi")
+        self.logger = TTlog(logger_name="RealCondi").logger
         self.mongo = MongoClient()
         self.tt_db = self.mongo.TopTrader
         self.slack = Slacker(config_manager.get_slack_token())
@@ -103,11 +103,9 @@ class TopTrader(QMainWindow, ui):
         # self.kw.notify_fn['4004'] = self.real_condi_4004
         self.kw.notify_fn['_on_receive_real_condition'] = self.result_real_condi_search
 
-        ret = self.kw.send_condition('4000', '추천조건식02', 0, 1)
-        ret = self.kw.send_condition('4001', '급등/상승_추세조건', 1, 1)
-        ret = self.kw.send_condition('4002', '추천조건식01', 2, 1)
-        ret = self.kw.send_condition('4003', 'Envelop횡단', 3, 1)
-        ret = self.kw.send_condition('4004', '스켈핑', 4, 1)
+        ret = self.kw.send_condition('4000', '단기_10min3p_급등주002', 5, 1)
+        ret = self.kw.send_condition('4001', '단기_10min3p_급등주001', 1, 1)
+        ret = self.kw.send_condition('4002', '단기_10min3p_스켈핑', 4, 1)
         print("real_condi_search end")
 
     def login(self):

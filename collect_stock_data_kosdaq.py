@@ -27,12 +27,12 @@ def main(duration_list):
         slack.send_message("[Automation] Start to collect stock data -> {}".format(duration))
 
         while True:
-            cmd = "python collect_stock_data_time_unit.py {}".format(duration)
+            cmd = "python collect_stock_data_time_unit_kosdaq.py {}".format(duration)
             print(cmd)
             os.system(cmd)
-            error_status = db.urgent.find({'type': 'error'}).next()
+            error_status = db.urgent2.find({'type': 'error'}).next()
             ret = error_status['error_code']
-            print("ret_code:{} -> python collect_stock_data_time_unit.py {}".format(ret, duration))
+            print("ret_code:{} -> python collect_stock_data_time_unit_kosdaq.py {}".format(ret, duration))
             if ret == -100:  # kiwoom server check time (mon~sat)
                 delay = 20
                 print("Delay {} minutes due to Kiwoom server check time. Mon~Sat".format(delay))
@@ -44,7 +44,7 @@ def main(duration_list):
                 print("Until : {}".format(datetime.datetime.today() + datetime.timedelta(minutes=delay)))
                 delay_min(delay)
 
-            cur = db.time_series_temp.find({'type': duration})
+            cur = db.time_series_temp2.find({'type': duration})
             if cur.count() == 0:  # exception case.. retry
                 continue
 

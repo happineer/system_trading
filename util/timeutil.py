@@ -2,7 +2,10 @@ from datetime import datetime
 
 
 def get_time_str(format="YYMMDD-HHMMSS"):
-    """½Ã°£ Æ÷¸Ë ¹®ÀÚ¿­¿¡ ÇØ´çÇÏ´Â ½ÇÁ¦ ³¯Â¥ ¹®ÀÚ¿­À» »ı¼ºÇÏ¿© ¹İÈ¯ÇÕ´Ï´Ù.
+    """ì‹œê°„ì •ë³´ë¥¼ ë¬¸ìì—´ë¡œ ë§Œë“¤ì–´ ë°˜í™˜í•©ë‹ˆë‹¤.
+
+        >>> t_str = get_time_str("YYMMDD-HHMMSS")
+        >>> print(t_str)
 
     :param format:
     :return:
@@ -12,13 +15,14 @@ def get_time_str(format="YYMMDD-HHMMSS"):
     elif format == "YYYYMMDD":
         t = datetime.today().strftime("%Y%m%d")
     elif format == "YYMMDD-HHMMSS":
-        t = datetime.today().strftime("%y%m%d-%H%M%S")
+        t = datetime.today().strftime("%y/%m/%d-%H:%M:%S")
     else:
-        t = datetime.today().strftime("%y%m%d-%H%M%S")
+        t = datetime.today().strftime("%y/%m/%d-%H:%M:%S")
     return t
 
+
 def get_datetime(format="YYMMDD"):
-    """½Ã°£Æ÷¸Ë ¹®ÀÚ¿­·ÎºÎÅÍ datetime °´Ã¼¸¦ »ı¼ºÇÏ¿© ¹İÈ¯ÇÕ´Ï´Ù.
+    """ì‹œê°„ì •ë³´ë¥¼ datetimeê°ì²´ë¡œ ë§Œë“¤ì–´ ë°˜í™˜í•©ë‹ˆë‹¤.
 
         need to implement..
 
