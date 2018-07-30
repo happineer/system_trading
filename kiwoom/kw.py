@@ -38,7 +38,7 @@ class Kiwoom(QAxWidget):
         self._set_signal_slots()
         self.tr_controller = TrController(self)
         self.acc_no = ""
-        self.notify_fn = {
+        self.event_callback_fn = {
             "OnEventConnect": {},
             "OnReceiveTrData": {},
             "OnReceiveRealData": [],
@@ -176,6 +176,7 @@ class Kiwoom(QAxWidget):
         :return:
         """
         try:
+
             self.logger.info("_on_receive_tr_condition")
             max_char_cnt = 60
             self.logger.info("[조건 검색 결과]".center(max_char_cnt, '-'))
@@ -207,9 +208,10 @@ class Kiwoom(QAxWidget):
             self.logger.error("condi_index:".format(condi_index))
             self.logger.error("next:".format(next))
         finally:
-            self.logger.debug("  ==================> [IMPORTANT] EVENT_LOOP <- RELEASE")
-            time.sleep(0.5)
-            self.evt_loop.exit()  # lock event
+            if self.evt_loop.isRunning():
+                self.logger.debug("  ==================> [IMPORTANT] EVENT_LOOP <- RELEASE")
+                time.sleep(0.5)
+                self.evt_loop.exit()  # lock event
 
     def _on_receive_condition_ver(self, ret_code, condition_text):
         """
@@ -236,9 +238,10 @@ class Kiwoom(QAxWidget):
         except Exception as e:
             self.logger.error("_on_receive_condition_ver")
         finally:
-            self.logger.debug("  ==================> [IMPORTANT] EVENT_LOOP <- RELEASE")
-            time.sleep(0.5)
-            self.evt_loop.exit()
+            if self.evt_loop.isRunning():
+                self.logger.debug("  ==================> [IMPORTANT] EVENT_LOOP <- RELEASE")
+                time.sleep(0.5)
+                self.evt_loop.exit()  # lock event
 
     def _on_receive_chejan_data(self, gubun, item_cnt, fid_list):
         """Kiwoom Receive Chejan Data Callback, 체결데이터를 받은 시점을 알려준다.
@@ -1046,10 +1049,10 @@ class Kiwoom(QAxWidget):
         :return:
         """
         if event in ["OnReceiveTrCondition", "OnReceiveTrData"]:
-            self.notify_fn[event][key] = fn
+            self.event_callback_fn[event][key] = fn
         else:  # OnReceiveRealCondition, OnReceiveChejanData, OnReceiveRealData
-            if fn not in self.notify_fn[event]:
-                self.notify_fn[event].append(fn)
+            if fn not in self.event_callback_fn[event]:
+                self.event_callback_fn[event].append(fn)
 
     def notify_callback(self, event, data, key=None):
         """특정 이벤트로 등록한 callback 함수를 호출한다.
@@ -1061,10 +1064,10 @@ class Kiwoom(QAxWidget):
         """
 
         if event in ["OnReceiveTrCondition", "OnReceiveTrData"]:
-            if key in self.notify_fn:
-                self.notify_fn[event][key](data)
+            if key in self.event_callback_fn:
+                self.event_callback_fn[event][key](data)
         else:  # OnReceiveRealCondition, OnReceiveChejanData, OnReceiveRealData
-            for fn in self.notify_fn[event]:
+            for fn in self.event_callback_fn[event]:
                 fn(data)
 
     def get_curr_price(self, code):
