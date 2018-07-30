@@ -44,10 +44,8 @@ class TopTrader(QMainWindow, ui):
         self.mongo = MongoClient()
         self.tt_db = self.mongo.TopTrader
         self.slack = Slack(config_manager.get_slack_token())
-        with open("collect_stock_data_last_date.txt") as f:
-            date_str = [int(n) for n in f.read().strip().split(" ")]
-
-        self.end_date = datetime(*date_str)
+        today = datetime.today()
+        self.end_date = datetime(today.year, today.month, today.day, 16, 0, 0)
         self.kw = Kiwoom()
         self.login()
         self.get_screen_no = {
@@ -161,6 +159,7 @@ class TopTrader(QMainWindow, ui):
         for i, stock in enumerate(stock_list[s_index:], s_index):
             code, stock_name = stock
             self.logger.info("%s/%s - %s/%s" % (i, total, code, stock_name))
+            self.logger.info("period : {} ~ {}".format(s_date, e_date))
             self.logger.info("time_series_{}".format(duration))
 
             try:
@@ -174,7 +173,7 @@ class TopTrader(QMainWindow, ui):
                 exit(0)
 
             try:
-                col.insert(doc)
+                self.upsert_db(col, doc)
             except pymongo.errors.InvalidOperation as e:
                 # cannot do an empty bulk write ?
                 self.logger.error(e)
@@ -251,8 +250,7 @@ class TopTrader(QMainWindow, ui):
                                          {'type': 'error', 'error_code': e.error_code},
                                          upsert=True)
                 exit(0)
-            col.insert(doc)
-            # self.upsert_db(col, doc)
+            self.upsert_db(col, doc)
             self.tt_db.time_series_temp.update({'type': duration},
                                                {'type': duration,
                                                 'code': code,

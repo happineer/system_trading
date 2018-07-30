@@ -23,8 +23,10 @@ from kiwoom import constant
 from util import common
 from kiwoom.logger import KWlog
 from functools import wraps
+from singleton_decorator import singleton
 
 
+@singleton
 class Kiwoom(QAxWidget):
     def __init__(self):
         super().__init__()
@@ -681,19 +683,31 @@ class Kiwoom(QAxWidget):
 
     @avoid_server_check_time
     @common.type_check
-    def stock_price_by_tick(self, code: str, tick: str, screen_no: str, start_date: datetime, end_date: datetime):
+    def stock_price_by_tick(self, code: str, tick: str, screen_no: str, start_date: datetime = None, end_date: datetime = None, date: datetime = None):
         """특정 주식종목의 틱봉 데이터를 요청하는 함수. tr요청시 한번에 최대 600개까지만 return 가능.
+        함수 호출시 start_date, end_date 쌍 또는 date 값 둘중 하나는 반드시 넘겨야 함.
+        date 를 넘기면 start_date, end_date 값이 자동으로 생성되며(하루 단위), 넘겨진 start_date, end_date는 overwrite됨.
+        하루단위 tick data를 얻고 싶으면 date변수에만 값을 넘기면 됨. (date변수에 시간정보는 모두 무시되면, 년월일 만 가지고 하루단위 tick 데이터를 수집함)
 
         :param str code: 주식코드
         :param str tick: Tick 단위(1, 3, 5, 10, 30)
         :param str screen_no: 화면번호
         :param datetime start_date: oldest date of user request
         :param datetime end_date: newest date of user request
+        :param datetime date: specific date of user request
         :return:
         """
         self.ret_data = []
+
+        if not((bool(start_date) and bool(end_date)) or bool(date)):
+            self.logger.error("call this function with (start_date, end_date) or (date) params")
+            exit(-1)
+
+        if bool(date):
+            start_date = datetime(date.year, date.month, date.day, 9, 0, 0)
+            end_date = datetime(date.year, date.month, date.day, 16, 0, 0)
+
         while True:
-            # self.logger.info("Do Transition opt10080")
             curr_result = self.tr_mgr.opt10079('주식틱봉', code, tick, screen_no, start_date, end_date)
             if not bool(curr_result):
                 break

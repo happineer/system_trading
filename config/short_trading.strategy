@@ -1,0 +1,23 @@
+{
+  "trading_time": [
+    ["09:00:00", "15:00:00"]
+  ],
+  "balance": 1000000,
+  "tax": 0.015,
+  "max_buy_price_per_stock": 200000,
+  "max_holding_period": 10,
+  "max_amount_stocks": 2,
+  "same_stock_trading": true,
+  "clear_account_at_eot": true,
+  "buy_at_condi_signal": 100,
+  "buy_at_rising": [],
+  "buy_at_falling": [],
+  "sell_at_rising": [
+    [1.0, 50],
+    [1.5, 100]
+  ],
+  "sell_at_falling": [
+    [-1.0, 50],
+    [-1.5, 100]
+  ]
+}

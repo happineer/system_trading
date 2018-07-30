@@ -5,7 +5,8 @@ import sys
 import time
 from pymongo import MongoClient
 from config import config_manager
-import datetime
+import datetime as datetime_m
+from datetime import datetime, timedelta
 from util.slack import Slack
 
 
@@ -18,9 +19,8 @@ def delay_min(t):
 def main(duration_list):
     mongo = MongoClient()
     db = mongo.TopTrader
-    with open("collect_stock_data_last_date.txt") as f:
-        date_str = [int(n) for n in f.read().strip().split(" ")]
-    end_date = datetime.datetime(*date_str)
+    today = datetime.today()
+    end_date = datetime(today.year, today.month, today.day, 16, 0, 0)
     slack = Slack(config_manager.get_slack_token())
 
     for duration in duration_list:
@@ -36,12 +36,12 @@ def main(duration_list):
             if ret == -100:  # kiwoom server check time (mon~sat)
                 delay = 20
                 print("Delay {} minutes due to Kiwoom server check time. Mon~Sat".format(delay))
-                print("Until : {}".format(datetime.datetime.today() + datetime.timedelta(minutes=delay)))
+                print("Until : {}".format(datetime.today() + timedelta(minutes=delay)))
                 delay_min(delay)
             elif ret == -101:  # kiwoom server check time (mon~sat)
                 delay = 45
                 print("Delay {} minutes due to Kiwoom server check time. Sun".format(delay))
-                print("Until : {}".format(datetime.datetime.today() + datetime.timedelta(minutes=delay)))
+                print("Until : {}".format(datetime.today() + timedelta(minutes=delay)))
                 delay_min(delay)
 
             cur = db.time_series_temp2.find({'type': duration})
