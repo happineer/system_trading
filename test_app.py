@@ -26,8 +26,7 @@ from PyQt5.QtCore import pyqtSlot
 from slacker import Slacker
 
 # Database
-import pymongo
-from pymongo import MongoClient
+from database.db_manager import DBM
 
 # Visualization
 import matplotlib as mpl
@@ -35,7 +34,7 @@ from matplotlib import pyplot as plt
 from matplotlib import font_manager as fm
 
 # My modules
-from config import config_manager as cfg_mgr
+from config import config_manager
 from util.tt_logger import TTlog
 
 # Kiwoom module
@@ -44,7 +43,7 @@ from kiwoom.constant import KiwoomServerCheckTimeError
 
 
 # load main UI object
-ui = uic.loadUiType(cfg_mgr.MAIN_UI_PATH)[0]
+ui = uic.loadUiType(config_manager.MAIN_UI_PATH)[0]
 
 
 # main class
@@ -63,16 +62,15 @@ class TopTrader(QMainWindow, ui):
         self.logger = TTlog(logger_name="TTRealCondi").logger
 
         # DB
-        self.mongo = MongoClient()
-        self.db = self.mongo.TopTrader
+        self.dbm = DBM('TopTrader')
 
         # Slack
-        self.slack = Slacker(cfg_mgr.get_slack_token())
+        self.slack = Slacker(config_manager.get_slack_token())
 
         # Kiwoom
         self.kw = Kiwoom()
         self.login()
-        cfg_mgr.stock_info = self.kw.get_stock_basic_info()
+        self.stock_info = self.kw.get_stock_basic_info()
 
         # app main
         self.main()
@@ -94,6 +92,39 @@ class TopTrader(QMainWindow, ui):
 
     def main(self):
         print("Start Application")
+        target_date = datetime(2018, 8, 2)
+        y, m, d = target_date.year, target_date.month, target_date.day
+        s_time = datetime(y, m, d, 9, 0, 0)
+        e_time = datetime(y, m, d, 15, 30, 0)
+        self.code = '000020'
+        df = pd.DataFrame(self.dbm.get_tick_data(self.code, target_date, tick="1"))
+        ts_group = df.groupby('timestamp')
+        volumn = pd.DataFrame(ts_group.sum()['거래량'])
+        price = pd.DataFrame(ts_group.max()['현재가'])
+        index = pd.date_range(s_time, e_time, freq='S')
+        volumn = volumn.reindex(index, method='ffill', fill_value=0)
+        price = price.reindex(index, method='ffill', fill_value=0)
+        price['volumn'] = volumn
+
+        from trading.account import Stock
+
+        tick_data = defaultdict(list)
+        stock_list = [Stock('900100', '주식1'), Stock('200710', '주식2'), Stock('206560', '주식3')]
+        for stock in stock_list:
+            stock.gen_time_series_sec1(target_date)
+            tick_data[stock.code] = stock.time_series_sec1
+        pdb.set_trace()
+
+        db_data = self.dbm.get_real_condi_search_data(target_date, "소형주_급등_005_003")
+
+        condi_hist = defaultdict(defaultdict)
+        for data in db_data[:5]:
+            code, date = data['code'], data['date'].replace(microsecond=0)
+            price = tick_data[code].ix[date]['현재가']
+            condi_hist[code][date] = price
+
+        pdb.set_trace()
+        print("End Application")
 
 
 # Print Exception Setting

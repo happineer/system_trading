@@ -61,11 +61,11 @@ class TopTrader(QMainWindow, ui):
         self.start_timer()
 
         # core function
-        self.screen_no = 4000
-        self.N1, self.N2 = 0, 10
+        # self.screen_no = 4000
+        # self.N1, self.N2 = 0, 10
 
-        # self.screen_no = 4001
-        # self.N1, self.N2 = 10, 20
+        self.screen_no = 4001
+        self.N1, self.N2 = 10, 20
 
         self.real_condi_search()
 
@@ -113,7 +113,6 @@ class TopTrader(QMainWindow, ui):
             'stock_name': self.stock_dict[event_data["code"]]["stock_name"],
             'market': self.stock_dict[event_data["code"]]["market"],
             'event': event_data["event_type"],
-            'condi_index': event_data["condi_index"],
             'condi_name': event_data["condi_name"]
         })
 

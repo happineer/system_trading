@@ -142,6 +142,7 @@ class TrManager():
         self.logger.info("(!)[Callback] _on_receive_tr_data")
         self.logger.info("trcode : {}".format(trcode))
         try:
+            # dispatch async kiwoom transaction
             post_fn_name = "post_{}".format(trcode.lower())
             post_fn = self.__getattribute__(post_fn_name)
             post_fn(trcode, rqname, next)
@@ -335,7 +336,6 @@ class TrManager():
                 raise Exception("[KiWoom Error][opt10079] %s" % ReturnCode.CAUSE[ret_code])
         try:
             tr_process(rqname, code, tick, screen_no, 0)
-            # data(self.tr_ret_data) is set when post_tr_function
             if self.tr_next == '0':
                 return [d for d in self.tr_ret_data if begin_date <= d['date'] <= end_date]
 
