@@ -19,3 +19,15 @@ class BuySequenceEmptyError(Exception):
 
     def __str__(self):
         return self.msg
+
+
+class CopyAttributeException(Exception):
+    """객체간 속성복사도중 발생한 예외
+
+    """
+    def __init__(self, msg):
+        self.msg = "[CopyAttributeException] %s" % msg
+
+    def __str__(self):
+        return self.msg
+

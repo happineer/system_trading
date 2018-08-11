@@ -6,7 +6,7 @@ import pdb
 
 from config import config_manager
 from database.db_manager import DBM
-from trading.account import Account
+from trading.account import Account, TradingHistory
 from trading.stock import Stock
 from util import constant
 from util import tt_logger
@@ -15,7 +15,7 @@ from util import tt_logger
 class StrategyConfig(object):
     def __init__(self, strg_file):
         cfg_path = config_manager.CFG_PATH
-        strg_file = os.path.join(cfg_path, strg_file)
+        self.strg_file = os.path.join(cfg_path, strg_file)
         self.logger = tt_logger.TTlog().logger
 
         if not os.path.exists(strg_file):
@@ -71,10 +71,12 @@ class Strategy(object):
     def __init__(self, strategy_cfg, condi):
         self.logger = tt_logger.TTlog().logger
         self.dbm = DBM('TopTrader')
+        self.strg_name = strategy_cfg.replace(".strategy", "")
         self.strg_cfg = StrategyConfig(strategy_cfg)
         self.condi = condi
         self.condi.set_disable_code_list(self.strg_cfg.disable_code_list)
-        self.acc = Account(self.strg_cfg.balance)
+        self.th = TradingHistory(self.strg_name, self.condi.condi_index, self.condi.condi_name)
+        self.acc = Account(self.strg_cfg.balance, self.th)
 
     def get_sell_signal_stocks(self, stock_list):
         """
@@ -237,7 +239,6 @@ class Strategy(object):
         if stock.first_trading:
             self.strg_cfg.init_index()
 
-
     def is_buy_signal(self, stock):
         """특정 종목에 대해 현재 timestamp에 매수해야 하는지 신호를 검사한다.
 
@@ -273,6 +274,7 @@ class Strategy(object):
         if stock.first_trading:
             amount = self.strg_cfg.max_buy_price_per_stock / curr_price
             self.acc.update_buy(stock, int(curr_price), int(amount), constant.FIRST_TRADING)
+
             return
 
         try:
