@@ -3,6 +3,10 @@
 KOSPI = "0"
 KOSDAQ = "10"
 
+# Trading Reason List_S
+FIRST_TRADING = "FIRST_TRADING"
+# Trading Reason List_E
+
 FILTER_KEYWORD = ["KODEX", "TIGER", "KINDEX", "ETN", "KOSEF", "ARIRANG", "KBSTAR",
                   "선물", "TREX", "SMART", "FOCUS", "HANARO", "ATM"]
 

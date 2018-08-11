@@ -71,8 +71,9 @@ class Strategy(object):
     def __init__(self, strategy_cfg, condi):
         self.logger = tt_logger.TTlog().logger
         self.dbm = DBM('TopTrader')
-        self.condi = condi
         self.strg_cfg = StrategyConfig(strategy_cfg)
+        self.condi = condi
+        self.condi.set_disable_code_list(self.strg_cfg.disable_code_list)
         self.acc = Account(self.strg_cfg.balance)
 
     def get_sell_signal_stocks(self, stock_list):
@@ -94,8 +95,13 @@ class Strategy(object):
         return [stock for stock in stock_list if self.is_buy_signal(stock)]
 
     def simulate(self, target_date):
+
         # 조건검색식으로부터 검출된 code list
         code_list = self.condi.detected_code_list(target_date)
+        print(code_list)
+
+        # 거래불가 종목을 제외
+        code_list = list(set(code_list) - set(self.strg_cfg.disable_code_list))
 
         # stock 객체 초기화 및 time_series_sec1 생성
         for code in code_list:
@@ -117,6 +123,7 @@ class Strategy(object):
                 stock_list = self.acc.get_stock_list_in_account()
                 for stock in self.get_sell_signal_stocks(stock_list):
                     # 주식 매도, 관련된 모든 정보 업데이트(계좌, 거래이력, 주식)
+                    stock.timestamp = t
                     self.simul_sell(stock, stock.get_curr_price(t))
                     sell_flag = True
 
@@ -128,6 +135,7 @@ class Strategy(object):
                 stock_list = self.condi.get_stock_list_at_timestamp(t)
                 for stock in self.get_buy_signal_stocks(stock_list):
                     # 주식 매수, 관련된 모든 정보 업데이트(계좌, 거래이력, 주식)
+                    stock.timestamp = t
                     self.simul_buy(stock, stock.get_curr_price(t))
 
             # 거래 period 끝난 후 일괄 청산
@@ -188,6 +196,13 @@ class Strategy(object):
         if sar_rate <= stock.수익률 or stock.수익률 <= saf_rate:
             return True
 
+        # 종목당 최대 보유시간 만기되면 팔아야 함
+        # strg_cfg.max_holding_period 값은 초단위
+        holding_period = stock.get_holding_period().seconds
+        if strg_cfg.max_holding_period <= holding_period:
+            return True
+        return False
+
     def sell(self, stock, strg_cfg):
         pass
 
@@ -199,13 +214,29 @@ class Strategy(object):
         """
         sar_rate, sar_amount_rate = self.strg_cfg.get_sar_step()
         saf_rate, saf_amount_rate = self.strg_cfg.get_saf_step()
+
         if sar_rate <= stock.수익률:
+            reason = "SELL_AT_RISING_{}".format(self.strg_cfg.i_sar + 1)
             amount = stock.보유수량 * sar_amount_rate * 0.01
             self.strg_cfg.exec_sar()
         elif stock.수익률 <= saf_rate:
+            reason = "SELL_AT_FALLING_{}".format(self.strg_cfg.i_saf + 1)
             amount = stock.보유수량 * saf_amount_rate * 0.01
             self.strg_cfg.exec_saf()
-        self.acc.update_sell(stock, int(price), int(amount))
+        elif self.strg_cfg.max_holding_period <= stock.get_holding_period().seconds:
+            reason = "SELL_BY_EXPIRED"
+            amount = stock.보유수량
+            price = stock.현재가
+        else:
+            print("Selling with no reason...? why?? need to check")
+
+        # Sell
+        self.acc.update_sell(stock, int(price), int(amount), reason)
+
+        # 주식을 모두다 팔면, index를 초기화 한다.
+        if stock.first_trading:
+            self.strg_cfg.init_index()
+
 
     def is_buy_signal(self, stock):
         """특정 종목에 대해 현재 timestamp에 매수해야 하는지 신호를 검사한다.
@@ -220,6 +251,14 @@ class Strategy(object):
             (stock.총매입금액 >= self.strg_cfg.max_buy_price_per_stock) or \
             (not stock.first_trading and not self.strg_cfg.same_stock_trading):
             return False
+
+        # 종목당 최대 매수 금액 내에서 살수 있는 종목수가 10주가 안되면 못사는것으로..
+        if not stock.first_trading:
+            available = self.strg_cfg.max_buy_price_per_stock - stock.총매입금액
+            amount = int(available / stock.현재가)
+            if amount < 10:
+                return False
+
         return True
 
     def buy(self, stock, strg_cfg):
@@ -233,23 +272,30 @@ class Strategy(object):
         """
         if stock.first_trading:
             amount = self.strg_cfg.max_buy_price_per_stock / curr_price
-            self.acc.update_buy(stock, int(curr_price), int(amount))
+            self.acc.update_buy(stock, int(curr_price), int(amount), constant.FIRST_TRADING)
             return
 
         try:
             # 물타기/불타기 (분할매수)
-            bar_rate, bar_amount_rate = self.strg_cfg.get_bar_step()
-            baf_rate, baf_amount_rate = self.strg_cfg.get_baf_step()
+            bar_rate, bar_amount_rate = self.strg_cfg.get_bar_step()  # 불타기
+            baf_rate, baf_amount_rate = self.strg_cfg.get_baf_step()  # 물타기
+            available = self.strg_cfg.max_buy_price_per_stock - stock.총매입금액
+
             if bar_rate <= stock.수익률:
-                amount = (self.strg_cfg.max_buy_price_per_stock * bar_amount_rate * 0.01) / stock.현재가
+                reason = "BUY_AT_RISING_{}".format(self.strg_cfg.i_bar+1)
+                amount = (available * bar_amount_rate * 0.01) / stock.현재가
                 self.strg_cfg.exec_bar()
+
             elif stock.수익률 <= baf_rate:
-                amount = (self.strg_cfg.max_buy_price_per_stock * baf_amount_rate * 0.01) / stock.현재가
+                reason = "BUY_AT_FALLING_{}".format(self.strg_cfg.i_baf + 1)
+                amount = (available * baf_amount_rate * 0.01) / stock.현재가
                 self.strg_cfg.exec_baf()
 
-            self.acc.update_buy(stock, int(curr_price), int(amount))
-        except constant.BuySequenceEmptyError as e:
-            self.logger.error(e("매수 신호 발생하였으나, 매수 단계가 정의되어 있지 않아, 매수하지 않습니다."))
+            self.acc.update_buy(stock, int(curr_price), int(amount), reason)
+        except Exception:
+            # except constant.BuySequenceEmptyError as e:
+            msg = "매수신호 발생하였으나, 매수단계(buy_at_rising, buy_at_falling)가 정의되어 있지 않아, 추가 매수 안함"
+            self.logger.error(msg)
 
     def plot(self):
         """시뮬레이션 결과를 plot
