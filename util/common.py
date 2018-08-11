@@ -1,5 +1,6 @@
 from functools import wraps
 import pdb
+from util import constant
 
 
 def type_check(f):
@@ -24,3 +25,21 @@ def type_check(f):
         ret = f(*args, **kwargs)
         return ret
     return wrapper
+
+
+def copy_attr(from_o, to_o, attr_list):
+    """object간 속성복사를 수행
+
+    :param from_o: 속성값을 가져올(제공할) object
+    :param to_o: 속성값을 복사할 object
+    :param attr_list: 속성리스트
+    :return:
+    """
+
+    try:
+        for attr in attr_list:
+            val = from_o.__getattribute__(attr)
+            to_o.__setattr__(attr, val)
+    except Exception:
+        raise constant.CopyAttributeException('속성복사도중 예외 발생하였습니다.')
+    return to_o
