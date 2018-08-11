@@ -48,7 +48,7 @@ class Account(object):
         """
 
     @common.type_check
-    def update_sell(self, stock: Stock, price_per_stock: int, amount: int):
+    def update_sell(self, stock: Stock, price_per_stock: int, amount: int, reason: str):
         """특정 주식을 매도했을때, 계좌정보를 업데이트
 
         :param code:
@@ -56,7 +56,9 @@ class Account(object):
         :return:
         """
         # stock 객체 업데이트
+        stock.trading_reason = reason
         stock.update_sell(price_per_stock, amount)
+
 
         # 계좌 정보 업데이트
         self.예수금 += stock.총평가금액
@@ -68,6 +70,7 @@ class Account(object):
         self.총수익률 = float(self.총손익) / self.시작잔고 * 100
         if stock.보유수량 == 0:
             del self.보유주식[stock.code]
+
         else:
             self.보유주식[stock.code] = stock
 
@@ -76,9 +79,10 @@ class Account(object):
         except:
             pdb.set_trace()
             print("Exception")
+        return ""
 
     @common.type_check
-    def update_buy(self, stock: Stock, price_per_stock: int, amount: int):
+    def update_buy(self, stock: Stock, price_per_stock: int, amount: int, reason: str):
         """특정 주식을 매수했을때, 계좌정보를 업데이트
 
         :param code:
@@ -87,12 +91,13 @@ class Account(object):
         :return:
         """
         # stock 객체 업데이트
+        stock.trading_reason = reason
         stock.update_buy(price_per_stock, amount)
 
         # 계좌 정보 업데이트
-        self.예수금 -= stock.매입금액
+        self.예수금 -= stock.매매금액
         self.총평가금액 += stock.총평가금액변동
-        self.총매입금액 += stock.매입금액
+        self.총매입금액 += stock.매매금액
         self.추정자산 = self.예수금 + self.총평가금액
         self.총손익 = self.총손익
         self.총수익률 = (float(self.총평가금액) - self.총매입금액) / self.총매입금액 * 100

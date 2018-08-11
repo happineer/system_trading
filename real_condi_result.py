@@ -121,15 +121,28 @@ class TopTrader(QMainWindow, ui):
         # 조건검색식 load
         condi_info = self.kw.get_condition_load()
         strg_list = []
+        cnt = 0
+        condi_selector = 3
         # loop를 돌면서 각각의 조건검색식에 대해 결과 분석
         for condi_name, condi_index in condi_info.items():
+            cnt += 1
+            if condi_selector != cnt:
+                continue
             # 특정일의 특정조건검색식을 특정전략으로 검증
             condi = ConditionalSearch.get_instance(condi_index, condi_name)
+
+            self.logger.info("=======[ Smulation(%s) Start! ]=======" % condi.condi_name)
             strg = Strategy("short_trading.strategy", condi)
             strg.simulate(self.target_date)
             strg_list.append(strg)
+            self.logger.info("=======[ Smulation(%s) End! ]=======" % condi.condi_name)
+            self.logger.info("\n\n\n")
 
-        print("end")
+            if condi_selector == cnt:
+                exit(0)
+
+        self.logger.info("end")
+        exit(0)
 
 
 # Print Exception Setting
