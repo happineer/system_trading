@@ -1,7 +1,7 @@
 from functools import wraps
 import pdb
 from util import constant
-
+from pprint import pprint as pp
 
 def type_check(f):
     """
@@ -43,3 +43,12 @@ def copy_attr(from_o, to_o, attr_list):
     except Exception:
         raise constant.CopyAttributeException('속성복사도중 예외 발생하였습니다.')
     return to_o
+
+
+def pprint(target):
+    """
+
+    :param target:
+    :return:
+    """
+    pp(target)
