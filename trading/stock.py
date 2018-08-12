@@ -22,26 +22,35 @@ class Stock(object):
         self.timestamp = None
         self.first_buy_time = None
 
+        # if add/delete index, must update self.core_index
         self.현재가 = 0
         self.매매수량 = 0
         self.보유수량 = 0
         self.매매금액 = 0
-        self.총매입금액 = 0
+        self.매입금액 = 0
         self.최대매입금액 = 0
         self.매입평균가 = 0.0
         self.평가손익 = 0.0
         self.실현손익 = 0
         self.누적손익 = 0
-        self.총평가금액 = 0.0
+        self.평가금액 = 0.0
         self.수익률 = 0.0
         self.누적수익률 = 0.0
-        self.총평가금액변동 = 0.0
+        self.평가금액변동 = 0.0
+        self.매입금액변동 = 0.0
+        self.실현손익변동 = 0.0
+        self.core_index = ['현재가', '매매수량', '보유수량', '매매금액', '매입금액', '최대매입금액', '매입평균가',
+                           '평가손익', '실현손익', '누적손익', '평가금액', '수익률', '누적수익률', '평가금액변동',
+                           '매입금액변동', '실현손익변동']
+        self.check_core_index()
 
         self.time_series_sec1 = None
         self.logger = TTlog().logger
         self.dbm = DBM('TopTrader')
 
     def print_attr(self, trading_type, attr_list=None):
+        if not cfg_mgr.STOCK_MONITOR:
+            return
         self.logger.debug("\n" + ("-" * 100))
         self.logger.debug("[Stock] Information : {}/{}".format(self.stock_name, self.code))
         self.logger.debug("[Trading Type] -> {}-{}".format(trading_type, self.trading_reason))
@@ -53,14 +62,13 @@ class Stock(object):
                 if isinstance(val, float):
                     log_str = "{}: {:.2f}".format(attr, val)
                 attr_val.append(log_str)
-            self.logger.debug(attr_val)
+            self.logger.debug("\t".join(attr_val))
         else:
             self.logger.debug(self.__repr__())
         # pass
 
     def __repr__(self):
-        core_index = ['timestamp', '현재가', '매매수량', '보유수량', '매매금액', '총매입금액', '최대매입금액', '매입평균가',
-                      '평가손익', '실현손익', '누적손익', '총평가금액', '수익률', '누적수익률']
+        core_index = ['timestamp'] + self.core_index
 
         # log = ["{}: {}".format(attr, str(self.__getattribute__(attr))) for attr in core_index]
         log = []
@@ -115,8 +123,8 @@ class Stock(object):
 
         :return:
         """
-        core_index = ['현재가', '매매수량', '보유수량', '매매금액', '총매입금액', '최대매입금액', '매입평균가',
-                      '평가손익', '실현손익', '누적손익', '총평가금액', '수익률', '누적수익률']
+        core_index = ['현재가', '매매수량', '보유수량', '매매금액', '매입금액', '최대매입금액', '매입평균가',
+                      '평가손익', '실현손익', '누적손익', '평가금액', '수익률', '누적수익률']
 
         for index in core_index:
             val = self.__getattribute__(index)
@@ -128,19 +136,21 @@ class Stock(object):
         self.매매수량 = amount
         self.보유수량 = self.기존보유수량 + self.매매수량
         self.매매금액 = self.현재가 * self.매매수량
-        self.총매입금액 = self.기존총매입금액 + self.매매금액
-        self.최대매입금액 = max(self.최대매입금액, self.총매입금액)
-        self.매입평균가 = self.총매입금액 / self.보유수량
+        self.매입금액 = self.기존매입금액 + self.매매금액
+        self.매입금액변동 = self.매입금액 - self.기존매입금액
+        self.최대매입금액 = max(self.최대매입금액, self.매입금액)
+        self.매입평균가 = self.매입금액 / self.보유수량
         self.평가손익 = (self.현재가 - self.매입평균가) * self.보유수량
         # self.실현손익 = self.실현손익
+        self.실현손익변동 = 0
         # self.누적손익 = self.누적손익
-        self.총평가금액 = self.현재가 * self.보유수량
+        self.평가금액 = self.현재가 * self.보유수량
         if self.보유수량 == 0:
             self.수익률 = 0.0
         else:
-            self.수익률 = round((self.총평가금액 - self.총매입금액) / self.총매입금액 * 100, 2)
+            self.수익률 = round((self.평가금액 - self.매입금액) / self.매입금액 * 100, 2)
         self.누적수익률 = round(float(self.누적손익) / self.최대매입금액 * 100, 2)
-        self.총평가금액변동 = self.총평가금액 - self.기존총평가금액
+        self.평가금액변동 = self.평가금액 - self.기존평가금액
 
         if self.first_trading:
             self.first_buy_time = self.timestamp
@@ -149,9 +159,9 @@ class Stock(object):
     def post_buy(self, **kwargs):
         price, amount = kwargs['price'], kwargs['amount']
         core_index = ['timestamp', '현재가', '매입평균가', '수익률', '누적수익률', '누적손익', '매매수량', '보유수량',
-                      '총매입금액', '최대매입금액', '평가손익', '실현손익', '총평가금액', '매매금액']
+                      '매입금액', '최대매입금액', '평가손익', '실현손익', '평가금액', '매매금액']
         self.print_attr('BUY', core_index)
-        pdb.set_trace()
+        # pdb.set_trace()
 
     def evaluate_sell(self, **kwargs):
         price, amount = kwargs['price'], kwargs['amount']
@@ -159,20 +169,22 @@ class Stock(object):
         self.매매수량 = amount
         self.보유수량 = self.기존보유수량 - self.매매수량
         self.매매금액 = self.현재가 * self.매매수량
-        self.총매입금액 = self.기존매입평균가 * self.보유수량
-        self.최대매입금액 = max(self.최대매입금액, self.총매입금액)
+        self.매입금액 = self.기존매입평균가 * self.보유수량
+        self.매입금액변동 = self.매입금액 - self.기존매입금액
+        self.최대매입금액 = max(self.최대매입금액, self.매입금액)
         # self.매입평균가 = self.매입평균가
         self.평가손익 = (self.현재가 - self.매입평균가) * self.보유수량
         self.실현손익 = (self.현재가 - self.매입평균가) * self.매매수량
+        self.실현손익변동 = self.실현손익 - self.기존실현손익
         self.누적손익 += self.실현손익
-        self.총평가금액 = self.현재가 * self.보유수량
-        # self.기존수익률 = round((self.기존총평가금액 - self.기존총매입금액) / self.기존총매입금액 * 100, 2)
+        self.평가금액 = self.현재가 * self.보유수량
+        # self.기존수익률 = round((self.기존평가금액 - self.기존매입금액) / self.기존매입금액 * 100, 2)
         if self.보유수량 == 0:
             self.수익률 = 0.0
         else:
-            self.수익률 = round((self.총평가금액 - self.총매입금액) / self.총매입금액 * 100, 2)
+            self.수익률 = round((self.평가금액 - self.매입금액) / self.매입금액 * 100, 2)
         self.누적수익률 = round(float(self.누적손익) / self.최대매입금액 * 100, 2)
-        self.총평가금액변동 = self.총평가금액 - self.기존총평가금액
+        self.평가금액변동 = self.평가금액 - self.기존평가금액
 
         if self.보유수량 == 0:
             self.first_trading = True
@@ -181,9 +193,9 @@ class Stock(object):
     def post_sell(self, **kwargs):
         price, amount = kwargs['price'], kwargs['amount']
         core_index = ['timestamp', '현재가', '매입평균가', '실현손익', '기존수익률', '기존누적수익률', '누적손익',
-                      '매매수량', '보유수량', '총매입금액', '최대매입금액', '평가손익', '총평가금액', '매매금액']
+                      '매매수량', '보유수량', '매입금액', '최대매입금액', '평가손익', '평가금액', '매매금액']
         self.print_attr('SELL', core_index)
-        pdb.set_trace()
+        # pdb.set_trace()
 
     def evaluate_change_price(self, **kwargs):
         price, amount = kwargs['price'], 0
@@ -191,24 +203,24 @@ class Stock(object):
         self.매매수량 = amount
         # self.보유수량 = self.기존보유수량 - self.매매수량
         self.매매금액 = 0
-        # self.총매입금액 = self.기존매입평균가 * self.보유수량
-        # self.최대매입금액 = max(self.최대매입금액, self.총매입금액)
+        # self.매입금액 = self.기존매입평균가 * self.보유수량
+        # self.최대매입금액 = max(self.최대매입금액, self.매입금액)
         # self.매입평균가 = self.매입평균가
         self.평가손익 = (self.현재가 - self.매입평균가) * self.보유수량
         # self.실현손익 = (self.현재가 - self.매입평균가) * self.매매수량
         # self.누적손익 += self.실현손익
-        self.총평가금액 = self.현재가 * self.보유수량
+        self.평가금액 = self.현재가 * self.보유수량
         if self.보유수량 == 0:
             self.수익률 = 0.0
         else:
-            self.수익률 = round((self.총평가금액 - self.총매입금액) / self.총매입금액 * 100, 2)
+            self.수익률 = round((self.평가금액 - self.매입금액) / self.매입금액 * 100, 2)
         # self.누적수익률 = round(float(self.누적손익) / self.최대매입금액 * 100, 2)
-        self.총평가금액변동 = self.총평가금액 - self.기존총평가금액
+        self.평가금액변동 = self.평가금액 - self.기존평가금액
 
     def post_change_price(self, **kwargs):
         price, amount = kwargs['price'], 0
-        core_index = ['현재가', '매매수량', '보유수량', '매매금액', '총매입금액', '최대매입금액', '매입평균가',
-                      '평가손익', '실현손익', '누적손익', '총평가금액', '수익률', '누적수익률']
+        core_index = ['현재가', '매매수량', '보유수량', '매매금액', '매입금액', '최대매입금액', '매입평균가',
+                      '평가손익', '실현손익', '누적손익', '평가금액', '수익률', '누적수익률']
         # self.print_attr('CHANGE PRICE')
 
     @common.type_check
@@ -249,31 +261,31 @@ class Stock(object):
     #         - 현재가
     #         - 수익률
     #         - 평가손익
-    #         - 총평가금액
+    #         - 평가금액
     #
     #     :param 현재가:
     #     :return:
     #     """
     #     # 기존 데이터 보관
-    #     self.기존총평가금액 = self.총평가금액
+    #     self.기존평가금액 = self.평가금액
     #     self.기존수익률 = self.수익률
     #     self.기존평가손익 = self.평가손익
     #
     #     # 신규 데이터 업데이트
     #     self.현재가 = 신규현재가
     #     if self.보유수량 == 0:
-    #         self.총평가금액 = 0.0
+    #         self.평가금액 = 0.0
     #         self.수익률 = 0.0
     #         self.평가손익 = 0.0
     #     else:
-    #         self.총평가금액 = 신규현재가 * 신규보유수량
+    #         self.평가금액 = 신규현재가 * 신규보유수량
     #         self.수익률 = round((신규현재가 - self.매입평균가) / self.매입평균가 * 100, 1)
-    #         self.평가손익 = self.총평가금액 - self.총매입금액
+    #         self.평가손익 = self.평가금액 - self.매입금액
     #
     #     # 변경점 지표 업데이트
     #     self.현재가변동 = 신규현재가 - self.기존현재가
     #     self.보유수량변동 = 신규보유수량 - self.기존보유수량
-    #     self.총평가금액변동 = self.총평가금액 - self.기존총평가금액
+    #     self.평가금액변동 = self.평가금액 - self.기존평가금액
     #     return self
 
     def gen_time_series_sec1(self, target_date):
@@ -323,3 +335,18 @@ class Stock(object):
             self.time_series_sec1 = self.gen_time_series_sec1(datetime(y, m, d))
 
         return self.time_series_sec1.ix[timestamp]['현재가']
+    
+    def get_core_index(self):
+        """Stock객체의 핵심 지표 리스트. 반드시 Stock객체의 속성값과 동기화가 되어야 함.
+        
+        :return: 
+        """
+        return self.core_index
+
+    def check_core_index(self):
+        """
+
+        :return:
+        """
+        for index in self.get_core_index():
+            self.__getattribute__(index)

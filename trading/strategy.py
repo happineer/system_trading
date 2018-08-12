@@ -18,11 +18,11 @@ class StrategyConfig(object):
         self.strg_file = os.path.join(cfg_path, strg_file)
         self.logger = tt_logger.TTlog().logger
 
-        if not os.path.exists(strg_file):
-            self.logger.error("{} not found..".format(strg_file))
+        if not os.path.exists(self.strg_file):
+            self.logger.error("{} not found..".format(self.strg_file))
             return None
 
-        for k, v in json.loads(open(strg_file, encoding='utf-8').read()).items():
+        for k, v in json.loads(open(self.strg_file, encoding='utf-8').read()).items():
             setattr(self, k, v)
 
         self.init_index()
@@ -141,7 +141,7 @@ class Strategy(object):
                     self.simul_buy(stock, stock.get_curr_price(t))
 
             # 거래 period 끝난 후 일괄 청산
-            self.acc.all_clear_stocks(t)
+            self.all_clear_stocks(t)
 
         return self
 
@@ -208,7 +208,7 @@ class Strategy(object):
     def sell(self, stock, strg_cfg):
         pass
 
-    def simul_sell(self, stock, price):
+    def simul_sell(self, stock, price, force=False):
         """매도를 진행하고, 매도 관련하여 모든 객체 정보를 업데이트한다.
 
         :param code:
@@ -217,18 +217,22 @@ class Strategy(object):
         sar_rate, sar_amount_rate = self.strg_cfg.get_sar_step()
         saf_rate, saf_amount_rate = self.strg_cfg.get_saf_step()
 
-        if sar_rate <= stock.수익률:
-            reason = "SELL_AT_RISING_{}".format(self.strg_cfg.i_sar + 1)
+        if force:
+            reason = constant.TRADING_TIME_EXPIRED
+            amount = stock.보유수량
+            price = stock.현재가
+        elif self.strg_cfg.max_holding_period <= stock.get_holding_period().seconds:
+            reason = constant.SHORT_TRADING_TIME_EXPIRED
+            amount = stock.보유수량
+            price = stock.현재가
+        elif sar_rate <= stock.수익률:
+            reason = "{}_STEP{}".format(constant.PRICE_RISING, self.strg_cfg.i_sar + 1)
             amount = stock.보유수량 * sar_amount_rate * 0.01
             self.strg_cfg.exec_sar()
         elif stock.수익률 <= saf_rate:
-            reason = "SELL_AT_FALLING_{}".format(self.strg_cfg.i_saf + 1)
+            reason = "{}_STEP{}".format(constant.PRICE_FALLING, self.strg_cfg.i_saf + 1)
             amount = stock.보유수량 * saf_amount_rate * 0.01
             self.strg_cfg.exec_saf()
-        elif self.strg_cfg.max_holding_period <= stock.get_holding_period().seconds:
-            reason = "SELL_BY_EXPIRED"
-            amount = stock.보유수량
-            price = stock.현재가
         else:
             print("Selling with no reason...? why?? need to check")
 
@@ -249,13 +253,13 @@ class Strategy(object):
         # 종목당 최대 매수금액 제한
         # 중복종목 매수 제한
         if (self.acc.get_stock_count() >= self.strg_cfg.max_amount_stocks) or \
-            (stock.총매입금액 >= self.strg_cfg.max_buy_price_per_stock) or \
+            (stock.매입금액 >= self.strg_cfg.max_buy_price_per_stock) or \
             (not stock.first_trading and not self.strg_cfg.same_stock_trading):
             return False
 
         # 종목당 최대 매수 금액 내에서 살수 있는 종목수가 10주가 안되면 못사는것으로..
         if not stock.first_trading:
-            available = self.strg_cfg.max_buy_price_per_stock - stock.총매입금액
+            available = self.strg_cfg.max_buy_price_per_stock - stock.매입금액
             amount = int(available / stock.현재가)
             if amount < 10:
                 return False
@@ -281,15 +285,15 @@ class Strategy(object):
             # 물타기/불타기 (분할매수)
             bar_rate, bar_amount_rate = self.strg_cfg.get_bar_step()  # 불타기
             baf_rate, baf_amount_rate = self.strg_cfg.get_baf_step()  # 물타기
-            available = self.strg_cfg.max_buy_price_per_stock - stock.총매입금액
+            available = self.strg_cfg.max_buy_price_per_stock - stock.매입금액
 
             if bar_rate <= stock.수익률:
-                reason = "BUY_AT_RISING_{}".format(self.strg_cfg.i_bar+1)
+                reason = "{}_STEP{}".format(constant.PRICE_RISING, self.strg_cfg.i_bar + 1)
                 amount = (available * bar_amount_rate * 0.01) / stock.현재가
                 self.strg_cfg.exec_bar()
 
             elif stock.수익률 <= baf_rate:
-                reason = "BUY_AT_FALLING_{}".format(self.strg_cfg.i_baf + 1)
+                reason = "{}_STEP{}".format(constant.PRICE_FALLING, self.strg_cfg.i_baf + 1)
                 amount = (available * baf_amount_rate * 0.01) / stock.현재가
                 self.strg_cfg.exec_baf()
 
@@ -298,6 +302,11 @@ class Strategy(object):
             # except constant.BuySequenceEmptyError as e:
             msg = "매수신호 발생하였으나, 매수단계(buy_at_rising, buy_at_falling)가 정의되어 있지 않아, 추가 매수 안함"
             self.logger.error(msg)
+
+    def all_clear_stocks(self, t):
+        stock_list = self.acc.get_stock_list_in_account()
+        for stock in stock_list:
+            self.simul_sell(stock, stock.get_curr_price(t), force=True)
 
     def plot(self):
         """시뮬레이션 결과를 plot

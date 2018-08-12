@@ -21,6 +21,7 @@ from database.db_manager import DBM
 from kiwoom.kw import Kiwoom
 from trading.condi import ConditionalSearch
 from trading.strategy import Strategy
+from util import constant
 from util.slack import Slack
 from util.tt_logger import TTlog
 
@@ -60,6 +61,7 @@ class TopTrader(QMainWindow, ui):
         cfg_mgr.STOCK_INFO = self.kw.get_stock_basic_info()
 
         # app main
+        cfg_mgr.MODE = constant.DEBUG
         self.main()
 
     def login(self):

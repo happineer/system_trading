@@ -5,7 +5,7 @@ from config import config_manager as cfg_mgr
 from database.db_manager import DBM
 from trading.stock import Stock
 from util.tt_logger import TTlog
-from util import common
+from util import common, constant
 
 
 @singleton
@@ -17,33 +17,62 @@ class Account(object):
 
     """
     def __init__(self, init_balance, th):
+
         self.시작잔고 = init_balance
         self.예수금 = init_balance
         self.총평가금액 = 0.0
-        self.총매보입금액 = 0.0
-        self.총손익 = 0.0
+        self.총매입금액 = 0.0
+        self.총최대매입금액 = 0.0
+        self.총평가손익 = 0.0
+        self.총손익 = 0.0  # 총평가손익 + 총누적손익
         self.추정자산 = init_balance
         self.총수익률 = 0.0
-        self.실현손익 = 0.0
+        self.총누적손익 = 0.0
+        self.총누적수익률 = 0.0
         self.보유주식 = {}
+        self.core_index = ['시작잔고', '예수금', '총평가금액', '총최대매입금액', '총매입금액', '총평가손익', '총손익',
+                           '추정자산', '총수익률', '총누적손익', '총누적수익률']
+
+        self.core_index = ['총누적손익', '총누적수익률', '총손익', '총수익률', '총평가손익', '총평가금액', '총매입금액',
+                           '추정자산', '총최대매입금액', '예수금', '시작잔고']
+
+        self.check_core_index()
+
         self.dbm = DBM('TopTrader')
         self.timestamp = None
         self.trading_history = th
         self.logger = TTlog().logger
 
-    def print_attr(self, trading_type):
-        # self.logger.debug("\n" + ("-" * 100))
-        # self.logger.debug("[Trading Type] -> {}".format(trading_type))
-        # self.logger.debug(self.__repr__())
-        pass
+    def print_attr(self, trading_type, stock_name, code, reason, attr_list=None):
+        if not cfg_mgr.ACCOUNT_MONITOR:
+            return
+        self.logger.debug("\n" + ("-" * 100))
+        self.logger.debug("[Account] Information : {}".format(self.timestamp))
+        self.logger.debug("[Trading Type] -> {}-{} ( {}/{} )".format(trading_type, reason, stock_name, code))
+        if bool(attr_list):
+            attr_val = []
+            for attr in attr_list:
+                val = self.__getattribute__(attr)
+                log_str = "{}: {}".format(attr, val)
+                if isinstance(val, float):
+                    log_str = "{}: {:.2f}".format(attr, val)
+                attr_val.append(log_str)
+            self.logger.debug("\n".join(attr_val))
+        else:
+            self.logger.debug(self.__repr__())
 
     def __repr__(self):
-        core_index = ['시작잔고', '예수금', '총평가금액', '총매입금액', '총손익', '추정자산', '총수익률',
-                      '실현손익', '보유주식']
+        core_index = ['timestamp'] + self.core_index
 
-        log = ["[Account] Information"]
-        log += ["{}: {}".format(attr, str(self.__getattribute__(attr))) for attr in core_index]
-        return "\n".join(log)
+        # log = ["{}: {}".format(attr, str(self.__getattribute__(attr))) for attr in core_index]
+        log = []
+        for attr in core_index:
+            val = self.__getattribute__(attr)
+            log_str = "{}: {}".format(attr, val)
+            if isinstance(val, float):
+                log_str = "{}: {:.2f}".format(attr, val)
+            log.append(log_str)
+        return "\t".join(log)
 
     def sync(self):
         """실제 계좌 정보를 불러와서 멤버 변수를 초기화 한다.
@@ -62,25 +91,36 @@ class Account(object):
         # stock 객체 업데이트
         stock.trading_reason = reason
         stock.update_sell(price_per_stock, amount)
-
+        if cfg_mgr.debug_mode():
+            self.print_attr('SELL', stock.stock_name, stock.code, reason)
+            # pdb.set_trace()
 
         # 계좌 정보 업데이트
-        self.예수금 += stock.총평가금액
-        self.총평가금액 -= stock.총평가금액
-        self.총매입금액 -= stock.총매입금액
-        self.추정자산 = self.예수금 + self.총평가금액
-        self.실현손익 += stock.총평가금액 - stock.총매입금액
-        self.총손익 = (self.총평가금액 - self.총매입금액) + self.실현손익
-        self.총수익률 = float(self.총손익) / self.시작잔고 * 100
+        self.예수금 += stock.매매금액
+        self.총평가금액 += stock.평가금액변동
+        self.총매입금액 += stock.매입금액변동
+        self.총최대매입금액 = max(self.총매입금액, self.총최대매입금액)
+        self.추정자산 = self.예수금 + self.총평가금액  # 현금(예수금) + 주식(총평가금액)
+        self.총누적손익 += stock.실현손익
+        self.총평가손익 = float(self.총평가금액 - self.총매입금액)  # 보유한 주식의가치로 얻은 손익
+        self.총손익 = self.총평가손익 + self.총누적손익  # 개념상 손익 (현금의 손익 + 가치의 손익)
+        try:
+            self.총수익률 = self.총평가손익 / self.총매입금액 * 100  # 보유한 주식에 대한 총 수익률
+        except ZeroDivisionError as e:
+            self.총수익률 = 0.0
+        self.총누적수익률 = float(self.총누적손익) / self.총최대매입금액 * 100  # 실현한 수익에 대한 총 수익률
+
+        self.sell_transaction(stock)
+
         if stock.보유수량 == 0:
             del self.보유주식[stock.code]
         else:
             self.보유주식[stock.code] = stock
 
-        self.sell_transaction(stock)
-
         try:
-            self.print_attr('sell')
+            if cfg_mgr.debug_mode():
+                self.print_attr('SELL', stock.stock_name, stock.code, reason)
+                # pdb.set_trace()
         except Exception:
             pdb.set_trace()
             print("Exception")
@@ -101,13 +141,16 @@ class Account(object):
         """
         tr = Trading(trading_type)
 
-        # 속성값이 겹치는 문제....
-        if trading_type == "B":  # BUY
-            stock_index = ['수익률']
-            account_index = ['수익률']
-        else:  # SELL
-            stock_index = ['수익률']
-            account_index = ['수익률']
+        # 속성값이 겹치지 않게 잘 관리되어야 함.
+        # 겹치는 속성이 있다면, Account속성에는 '총' 붙이도록 함.
+        stock_index = stock.get_core_index()
+        account_index = self.get_core_index()
+
+        # temp code
+        ret = set(stock_index) & set(account_index)
+        if bool(ret):
+            self.logger.error("{} is duplicate index. program exit")
+            exit(-1)
 
         tr = common.copy_attr(stock, tr, stock_index)
         tr = common.copy_attr(self, tr, account_index)
@@ -119,7 +162,7 @@ class Account(object):
 
         :return:
         """
-        tr = self.gen_trading_info(stock)
+        tr = self.gen_trading_info(stock, constant.SELL_TRADING_TYPE)
         self.trading_history.record_sell_transaction(tr)
 
     @common.type_check
@@ -135,22 +178,33 @@ class Account(object):
         stock.trading_reason = reason
         stock.update_buy(price_per_stock, amount)
 
+        if cfg_mgr.debug_mode():
+            self.print_attr('BUY', stock.stock_name, stock.code, reason)  # need to move to util/common pkg
+            # pdb.set_trace()
+
         # 계좌 정보 업데이트
         self.예수금 -= stock.매매금액
-        self.총평가금액 += stock.총평가금액변동
-        self.총매입금액 += stock.매매금액
-        self.추정자산 = self.예수금 + self.총평가금액
-        self.총손익 = self.총손익
-        self.총수익률 = (float(self.총평가금액) - self.총매입금액) / self.총매입금액 * 100
-        # self.실현손익 --> Sell 할때 업데이트 됨
-        # self.총손익 --> Sell 할때 업데이트 됨
+        self.총평가금액 += stock.평가금액변동
+        self.총매입금액 += stock.매입금액변동
+        self.총최대매입금액 = max(self.총매입금액, self.총최대매입금액)
+        self.추정자산 = self.예수금 + self.총평가금액  # 현금(예수금) + 주식(총평가금액)
+        # self.총누적손익 += self.총누적손익 --> 변동없음
+        self.총평가손익 = float(self.총평가금액 - self.총매입금액)  # 보유한 주식의가치로 얻은 손익
+        self.총손익 = self.총평가손익 + self.총누적손익  # 개념상 손익 (현금의 손익 + 가치의 손익)
+        self.총수익률 = self.총평가손익 / self.총매입금액 * 100  # 보유한 주식에 대한 총 수익률
+        self.총누적수익률 = float(self.총누적손익) / self.총최대매입금액 * 100  # 실현한 수익에 대한 총 수익률
+
+        # 보유주식에 포함
         self.보유주식[stock.code] = stock
 
         self.buy_transaction(stock)
         try:
-            self.print_attr('buy')  # need to move to util/common pkg
+            if cfg_mgr.debug_mode():
+                self.print_attr('BUY', stock.stock_name, stock.code, reason)  # need to move to util/common pkg
+                # pdb.set_trace()
+
         except Exception:
-            pdb.set_trace()
+            # pdb.set_trace()
             print("Exception")
 
     def buy_transaction(self, stock):
@@ -158,7 +212,7 @@ class Account(object):
 
         :return:
         """
-        tr = self.gen_trading_info(stock)
+        tr = self.gen_trading_info(stock, constant.SELL_TRADING_TYPE)
         self.trading_history.record_buy_transaction(tr)
 
     def revaluate(self):
@@ -170,13 +224,27 @@ class Account(object):
             총손익 = (총평가금액 - 총매입금액) + 실현손익
         :return:
         """
-        self.총평가금액 = 0
+        # self.총평가금액 = 0
         for stock in self.보유주식.values():
-            self.총평가금액 += stock.총평가금액
+            # if cfg_mgr.debug_mode():
+            #     self.print_attr('KEEP', stock.stock_name, stock.code, 'CHANGE_PRICE')  # need to move to util/common pkg
+            #     pdb.set_trace()
 
-        self.추정자산 = self.예수금 + self.총평가금액
-        self.총손익 = (self.총평가금액 - self.총매입금액) + self.실현손익
-        self.총수익률 = float(self.총손익) / self.시작잔고 * 100
+            # 계좌 정보 업데이트
+            # self.예수금 -= stock.매매금액
+            self.총평가금액 += stock.평가금액변동
+            # self.총매입금액 += stock.매입금액변동
+            # self.총최대매입금액 = max(self.총매입금액, self.총최대매입금액)
+            self.추정자산 = self.예수금 + self.총평가금액  # 현금(예수금) + 주식(총평가금액)
+            # self.총누적손익 += self.총누적손익 --> 변동없음
+            self.총평가손익 = float(self.총평가금액 - self.총매입금액)  # 보유한 주식의가치로 얻은 손익
+            self.총손익 = self.총평가손익 + self.총누적손익  # 개념상 손익 (현금의 손익 + 가치의 손익)
+            self.총수익률 = self.총평가손익 / self.총매입금액 * 100  # 보유한 주식에 대한 총 수익률
+            # self.총누적수익률 = float(self.총누적손익) / self.총최대매입금액 * 100  # 실현한 수익에 대한 총 수익률
+
+        # if cfg_mgr.debug_mode():
+        #     self.print_attr('KEEP', stock.stock_name, stock.code, 'CHANGE_PRICE')  # need to move to util/common pkg
+        #     pdb.set_trace()
 
     def update_account_value(self, timestamp):
         """보유주식을 현 timestamp에 맞게 내부 정보를 업데이트 한다.
@@ -282,9 +350,27 @@ class Account(object):
 
         :return:
         """
-        reason = "TRADING_TIME_EXPIRED"
         for stock in self.보유주식.values():
-            self.clear_stock(stock, stock.get_curr_price(timestamp), reason)
+            self.clear_stock(stock, stock.get_curr_price(timestamp), constant.TRADING_TIME_EXPIRED)
+
+    def get_core_index(self):
+        """Account 객체의 핵심 지표 리스트. 반드시 Account 객체의 속성값과 동기화가 되어야 함.
+
+        :return:
+        """
+        return self.core_index
+
+    def check_core_index(self):
+        """계좌의 핵심 지표들이 모두 설정되었는지 check.
+        누락된 지표가 있다면 Exception 발생하고 프로그램 종료
+
+        :return:
+        """
+        for index in self.get_core_index():
+            self.__getattribute__(index)
+
+    def is_empty(self):
+        return bool(self.보유주식)
 
 
 class Trading(object):
@@ -292,8 +378,23 @@ class Trading(object):
         특정시점의 모든 data를 snapshot뜨는 기능에 집중
     """
     def __init__(self, trading_type):
-        self.trading_type = trading_type
+        self.trading_type = trading_type  # SELL, BUY (defined at constant)
         self.logger = TTlog().logger
+        self.trading_core_index = [
+            '현재가', '매매수량', '보유수량', '매매금액', '매입금액', '최대매입금액', '매입평균가',
+            '평가손익', '실현손익', '누적손익', '평가금액', '수익률', '누적수익률', '평가금액변동',
+            '시작잔고', '예수금', '총평가금액', '총매입금액', '총평가손익', '총손익', '추정자산',
+            '총수익률', '총누적손익', '총누적수익률'
+        ]
+
+    def check_core_index(self):
+        """Trading의 핵심 지표들이 모두 설정되었는지 check.
+        누락된 지표가 있다면 Exception 발생하고 프로그램 종료
+
+        :return:
+        """
+        for index in self.trading_core_index:
+            self.__getattribute__(index)
 
 
 class TradingHistory(object):
@@ -306,6 +407,7 @@ class TradingHistory(object):
         self.condi_name = condi_index  # buy signal을 제공한 조건검색식(buy에서만 사용)
         self.condi_index = condi_name  # buy signal을 제공한 조건검색식 index (buy에서만 사용)
         self.trading_history = []
+        self.dbm = DBM('TopTrader')
         self.logger = TTlog().logger
 
     def record_sell_transaction(self, trading_info):
@@ -315,6 +417,7 @@ class TradingHistory(object):
         :return:
         """
         self.trading_history.append(trading_info)
+        # self.dbm.record_sell_transaction(trading_info)
 
     def record_buy_transaction(self, trading_info):
         """
@@ -323,6 +426,7 @@ class TradingHistory(object):
         :return:
         """
         self.trading_history.append(trading_info)
+        # self.dbm.record_sell_transaction(trading_info)
 
     def get_trading_history(self):
         """
