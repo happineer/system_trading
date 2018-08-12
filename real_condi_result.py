@@ -21,6 +21,7 @@ from database.db_manager import DBM
 from kiwoom.kw import Kiwoom
 from trading.condi import ConditionalSearch
 from trading.strategy import Strategy
+from util import common, constant
 from util.slack import Slack
 from util.tt_logger import TTlog
 
@@ -60,6 +61,7 @@ class TopTrader(QMainWindow, ui):
         cfg_mgr.STOCK_INFO = self.kw.get_stock_basic_info()
 
         # app main
+        cfg_mgr.MODE = constant.DEBUG
         self.main()
 
     def login(self):
@@ -121,13 +123,8 @@ class TopTrader(QMainWindow, ui):
         # 조건검색식 load
         condi_info = self.kw.get_condition_load()
         strg_list = []
-        cnt = 0
-        condi_selector = 3
         # loop를 돌면서 각각의 조건검색식에 대해 결과 분석
         for condi_name, condi_index in condi_info.items():
-            cnt += 1
-            if condi_selector != cnt:
-                continue
             # 특정일의 특정조건검색식을 특정전략으로 검증
             condi = ConditionalSearch.get_instance(condi_index, condi_name)
 
@@ -137,9 +134,6 @@ class TopTrader(QMainWindow, ui):
             strg_list.append(strg)
             self.logger.info("=======[ Smulation(%s) End! ]=======" % condi.condi_name)
             self.logger.info("\n\n\n")
-
-            if condi_selector == cnt:
-                exit(0)
 
         self.logger.info("end")
         exit(0)
