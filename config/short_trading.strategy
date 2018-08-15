@@ -1,11 +1,16 @@
 {
   "trading_time": [
-    ["09:00:00", "15:00:00"]
+    ["09:00:00", "09:30:00"],
+    ["12:30:00", "12:50:00"]
+  ],
+  "disable_code_list": [
+    "138360", "092600", "123570", "217600", "226360", "234100", "263770", "073070", "182360",
+    "087260", "115480", "222980", "226350", "263800"
   ],
   "balance": 1000000,
-  "tax": 0.015,
+  "tax": 0.035,
   "max_buy_price_per_stock": 200000,
-  "max_holding_period": 10,
+  "max_holding_period": 600,
   "max_amount_stocks": 2,
   "same_stock_trading": true,
   "clear_account_at_eot": true,
@@ -13,11 +18,11 @@
   "buy_at_rising": [],
   "buy_at_falling": [],
   "sell_at_rising": [
-    [1.0, 50],
-    [1.5, 100]
+    [1.5, 50],
+    [2.0, 100]
   ],
   "sell_at_falling": [
-    [-1.0, 50],
-    [-1.5, 100]
+    [-2.0, 50],
+    [-3.0, 100]
   ]
 }
